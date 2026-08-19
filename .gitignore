@@ -44,6 +44,9 @@ data/benchmark/topology-v1/manifest.json
 data/benchmark/topology-v1/degradation/
 !data/benchmark/topology-v1/.gitkeep
 !data/benchmark/topology-v1.spec.json
+data/benchmark/topology-repair-dev/manifest.json
+!data/benchmark/topology-repair-dev/.gitkeep
+!data/benchmark/topology-repair-dev.spec.json
 models/ocr/*
 !models/ocr/.gitkeep
 !models/ocr/manifest.json

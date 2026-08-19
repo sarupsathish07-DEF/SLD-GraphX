@@ -4,6 +4,7 @@ import numpy as np
 from engine.sldgraph.topology.assemble import (
     build_candidates,
     build_gap_bridges,
+    build_terminal_corridor_candidates,
     repair_and_select,
     validate_graph,
 )
@@ -39,6 +40,16 @@ def test_crossing_without_explicit_junction_stays_ambiguous() -> None:
     crossings = classify_crossings(conductors, [])
     assert len(crossings) == 1
     assert crossings[0].kind is CrossingKind.AMBIGUOUS_CROSSING
+
+
+def test_t_intersection_is_connected_without_turning_x_into_a_join() -> None:
+    conductors = [
+        ConductorEvidence(id="through", polyline=[(0.1, 0.5), (0.9, 0.5)], confidence=0.9),
+        ConductorEvidence(id="branch", polyline=[(0.5, 0.2), (0.5, 0.5)], confidence=0.9),
+    ]
+    crossings = classify_crossings(conductors, [])
+    assert crossings[0].kind is CrossingKind.CONNECTED_JUNCTION
+    assert crossings[0].provenance == "t_endpoint_intersection"
 
 
 def test_terminal_generation_and_snap_build_physical_candidate() -> None:
@@ -81,3 +92,12 @@ def test_masked_text_interruption_becomes_reviewable_gap_bridge() -> None:
     selected, issues = repair_and_select(bridges)
     assert len(selected) == 1 and selected[0].gap_bridge
     assert any(item.kind == "GAP_BRIDGE_REVIEW" for item in issues)
+
+
+def test_terminal_corridor_recovers_short_supported_device_approach() -> None:
+    symbols = [_symbol("source", "energy_source", (0.05, 0.4, 0.12, 0.6)), _symbol("transformer", "power_transformer", (0.18, 0.4, 0.26, 0.6))]
+    line_map = np.zeros((200, 400), dtype=np.uint8)
+    cv2.line(line_map, (50, 100), (78, 100), 255, 2)
+    candidates = build_terminal_corridor_candidates(line_map, generate_terminals(symbols), symbols)
+    assert len(candidates) == 1
+    assert candidates[0].provenance == "terminal_corridor_scan"

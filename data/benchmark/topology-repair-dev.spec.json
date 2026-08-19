@@ -1,0 +1,7 @@
+{
+  "name": "topology-repair-dev-v1",
+  "generator": "scripts/create_topology_repair_development.py",
+  "purpose": "development and validation only; never replace or tune topology-v1 frozen test/holdout",
+  "style_split": {"development": ["style_e"], "validation": ["style_f"]},
+  "topologies": ["radial", "dual_transformer", "sectionalized_bus", "bus_coupler", "alternate_supply", "ring"]
+}

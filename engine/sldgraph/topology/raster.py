@@ -15,6 +15,7 @@ from engine.sldgraph.topology.models import (
     TopologySymbol,
     TopologyText,
 )
+from engine.sldgraph.topology.terminals import generate_terminals
 
 
 def protected_mask(
@@ -23,10 +24,30 @@ def protected_mask(
     """Protect visual symbols/text from skeletonization while retaining raw ink for bridge review."""
     height, width = shape
     mask = np.zeros(shape, dtype=np.uint8)
-    for item in [*symbols, *texts]:
+    for item in symbols:
         x1, y1, x2, y2 = item.bbox_normalized
-        pad = max(2, round(min(width, height) * 0.0025))
-        cv2.rectangle(mask, (max(0, round(x1 * width) - pad), max(0, round(y1 * height) - pad)), (min(width - 1, round(x2 * width) + pad), min(height - 1, round(y2 * height) + pad)), 255, -1)
+        # A detector bbox is evidence, not an excuse to erase its approaches.
+        # Protect the class interior with a small adaptive inset instead of padding it.
+        inset = max(1, round(min(width, height) * 0.0018))
+        cv2.rectangle(mask, (max(0, round(x1 * width) + inset), max(0, round(y1 * height) + inset)), (min(width - 1, round(x2 * width) - inset), min(height - 1, round(y2 * height) - inset)), 255, -1)
+    for item in texts:
+        x1, y1, x2, y2 = item.bbox_normalized
+        inset = max(1, round(min(width, height) * 0.0015))
+        cv2.rectangle(mask, (max(0, round(x1 * width) + inset), max(0, round(y1 * height) + inset)), (min(width - 1, round(x2 * width) - inset), min(height - 1, round(y2 * height) - inset)), 255, -1)
+    # Re-open narrow terminal corridors. The device interior remains hidden, while
+    # conductor approaches are preserved for segment-to-terminal association.
+    corridor_length = max(14, round(min(width, height) * 0.032))
+    corridor_width = max(3, round(min(width, height) * 0.0045))
+    for terminal in generate_terminals(symbols):
+        symbol = next(item for item in symbols if item.id == terminal.symbol_id)
+        x1, y1, x2, y2 = symbol.bbox_normalized
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        tx, ty = terminal.position
+        dx, dy = tx - cx, ty - cy
+        magnitude = max(1e-6, float(np.hypot(dx, dy)))
+        start = (round(tx * width), round(ty * height))
+        end = (round((tx + dx / magnitude * corridor_length / width) * width), round((ty + dy / magnitude * corridor_length / height) * height))
+        cv2.line(mask, start, end, 0, corridor_width)
     return mask
 
 
@@ -117,15 +138,15 @@ def extract_conductors(
     )
     mask = protected_mask((height, width), symbols, texts)
     masked = cv2.bitwise_and(ink, cv2.bitwise_not(mask))
-    horizontal = cv2.morphologyEx(
-        masked,
-        cv2.MORPH_OPEN,
-        cv2.getStructuringElement(cv2.MORPH_RECT, (max(17, width // 70), 1)),
+    fine = max(9, width // 115)
+    medium = max(17, width // 70)
+    horizontal = cv2.bitwise_or(
+        cv2.morphologyEx(masked, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (fine, 1))),
+        cv2.morphologyEx(masked, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (medium, 1))),
     )
-    vertical = cv2.morphologyEx(
-        masked,
-        cv2.MORPH_OPEN,
-        cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(17, height // 70))),
+    vertical = cv2.bitwise_or(
+        cv2.morphologyEx(masked, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, fine))),
+        cv2.morphologyEx(masked, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, medium))),
     )
     directional = cv2.bitwise_or(horizontal, vertical)
     # Preserve angled feeders only where line evidence is strong; symbols/text remain masked.
@@ -226,5 +247,10 @@ def classify_crossings(conductors: list[ConductorEvidence], junctions: list[Junc
             continue
         if any(np.hypot(point[0] - item.position[0], point[1] - item.position[1]) < 0.008 for item in output):
             continue
-        output.append(JunctionEvidence(id=f"crossing:{len(output):03}", position=(round(point[0], 6), round(point[1], 6)), kind=CrossingKind.AMBIGUOUS_CROSSING, degree=4, confidence=0.42, provenance="line_intersection", review_status="pending"))
+        left_endpoint = min(np.hypot(point[0] - x, point[1] - y) for x, y in (left.polyline[0], left.polyline[-1])) < 0.006
+        right_endpoint = min(np.hypot(point[0] - x, point[1] - y) for x, y in (right.polyline[0], right.polyline[-1])) < 0.006
+        # A T has one terminating branch meeting a continuing path. This differs
+        # from a bare X, which stays ambiguous without an explicit dot.
+        t_intersection = left_endpoint ^ right_endpoint
+        output.append(JunctionEvidence(id=f"crossing:{len(output):03}", position=(round(point[0], 6), round(point[1], 6)), kind=CrossingKind.CONNECTED_JUNCTION if t_intersection else CrossingKind.AMBIGUOUS_CROSSING, degree=3 if t_intersection else 4, confidence=0.64 if t_intersection else 0.42, provenance="t_endpoint_intersection" if t_intersection else "line_intersection", review_status="unreviewed" if t_intersection else "pending"))
     return output

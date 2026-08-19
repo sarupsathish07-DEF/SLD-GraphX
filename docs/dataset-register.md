@@ -7,6 +7,7 @@
 | OCR-v1 frozen benchmark | Project-generated SLDForge radial, dual-transformer, sectionalized-bus drawings | local OCR regression, normalization/semantic checks, controlled association evaluation | project-controlled synthetic; test-only at drawing level |
 | Symbol-v1 | Project-generated SLDForge P0-symbol scenes, 75 drawings / 750 objects / four styles | isolated detector training, controlled in-style test, unseen-style holdout, tiled-label accounting | project-controlled synthetic; whole-drawing split before tiles; no real-data claim |
 | Topology-v1 | Project-generated SLDForge topology scenes, 24 drawings / six topology families / four styles | local detector plus physical-edge, reachability, junction, baseline, and degradation regression | project-controlled synthetic; styles A/B/C test, style D holdout; no real-data claim |
+| Topology-repair-dev-v1 | Project-generated SLDForge topology scenes, 12 drawings / styles E/F | M4R development and validation tuning only | project-controlled synthetic; never substitutes for topology-v1 frozen test/holdout |
 
 OCR-v1 generation configuration is tracked in `data/benchmark/ocr-v1.spec.json`; generated PNGs and manifest are ignored because they are reproducible local evidence. It contains topology, fixed seed, degradation, string/type/entity links, coordinates, and drawing-level test split. No external SLD dataset has been downloaded or evaluated.
 

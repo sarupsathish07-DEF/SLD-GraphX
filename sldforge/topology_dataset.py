@@ -110,3 +110,19 @@ def generate_topology_corpus(output: Path, manifest_target: Path) -> dict:
     manifest_target.parent.mkdir(parents=True, exist_ok=True)
     manifest_target.write_text(json.dumps({"entries": entries}, indent=2), encoding="utf-8")
     return {"entries": entries}
+
+
+def generate_topology_repair_development_corpus(output: Path, manifest_target: Path) -> dict:
+    """Generate repair-only styles which are never part of frozen v1 test/holdout."""
+    entries = []
+    for style, split in (("style_e", "development"), ("style_f", "validation")):
+        for seed, topology in enumerate(
+            ("radial", "dual_transformer", "sectionalized_bus", "bus_coupler", "alternate_supply", "ring"),
+            start=101,
+        ):
+            name = f"{split}-{style}-{topology}-{seed}.png"
+            payload = render_topology_scene(topology, style, seed, output / name)
+            entries.append({"image": name, "split": split, **payload})
+    manifest_target.parent.mkdir(parents=True, exist_ok=True)
+    manifest_target.write_text(json.dumps({"entries": entries}, indent=2), encoding="utf-8")
+    return {"entries": entries}

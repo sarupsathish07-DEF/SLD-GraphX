@@ -15,7 +15,7 @@ from PIL import Image, ImageEnhance, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from engine.sldgraph.topology import TopologySymbol, reconstruct
-from engine.sldgraph.topology.assemble import build_candidates, repair_and_select
+from engine.sldgraph.topology.assemble import build_endpoint_candidates, repair_and_select
 from engine.sldgraph.topology.raster import extract_conductors
 from engine.sldgraph.topology.terminals import generate_terminals
 from services.api.app.services.symbol_worker import detect
@@ -67,7 +67,7 @@ def _pairs(connections, mapping: dict[str, str]) -> set[frozenset[str]]:
 def _baseline(path: Path, symbols: list[TopologySymbol]):
     image = cv2.imread(str(path), cv2.IMREAD_COLOR)
     conductors, _, _, _ = extract_conductors(image, [], [])
-    candidates = build_candidates(conductors, generate_terminals(symbols), symbols)
+    candidates = build_endpoint_candidates(conductors, generate_terminals(symbols), symbols)
     return repair_and_select(candidates)[0]
 
 
@@ -78,6 +78,7 @@ def _metrics(entry: dict, path: Path) -> dict:
     mapping = _map_symbols(symbols, entry["nodes"])
     truth = {frozenset((item["from"], item["to"])) for item in entry["edges"]}
     predicted = _pairs(result.connections, mapping)
+    candidate = _pairs(result.candidates, mapping)
     baseline = _pairs(_baseline(path, symbols), mapping)
     tp, fp, fn = len(predicted & truth), len(predicted - truth), len(truth - predicted)
     base_tp, base_fp, base_fn = len(baseline & truth), len(baseline - truth), len(truth - baseline)
@@ -95,7 +96,7 @@ def _metrics(entry: dict, path: Path) -> dict:
     pair_checks = [(left, right) for index, left in enumerate(all_nodes) for right in all_nodes[index + 1 :]]
     reachability = sum((_connected(left, right, truth_components) == _connected(left, right, predicted_components)) for left, right in pair_checks) / len(pair_checks) if pair_checks else 1.0
     connected_junctions = [item for item in result.junctions if item.kind.value == "connected_junction"]
-    return {"image": entry["image"], "topology": entry["topology"], "style": entry["style"], "symbols_detected": len(symbols), "symbols_mapped": len(mapping), "tp": tp, "fp": fp, "fn": fn, "precision": round(precision, 4), "recall": round(recall, 4), "f1": round(f1, 4), "critical_edge_recall": round(critical_recall, 4), "physical_reachability_accuracy": round(reachability, 4), "connected_component_correct": truth_components == predicted_components, "junction_accuracy": 1.0 if not connected_junctions else 0.0, "baseline": {"tp": base_tp, "fp": base_fp, "fn": base_fn, "precision": round(base_precision, 4), "recall": round(base_recall, 4), "f1": round(base_f1, 4)}, "runtime_ms": round((time.perf_counter() - started) * 1000, 2), "detector_inference_ms": detector_response.elapsed_ms, "topology_inference_ms": result.elapsed_ms, "errors": _errors(tp, fp, fn, len(mapping), len(entry["nodes"]))}
+    return {"image": entry["image"], "topology": entry["topology"], "style": entry["style"], "symbols_detected": len(symbols), "symbols_mapped": len(mapping), "tp": tp, "fp": fp, "fn": fn, "candidate_tp": len(candidate & truth), "candidate_fn": len(truth - candidate), "precision": round(precision, 4), "recall": round(recall, 4), "f1": round(f1, 4), "critical_edge_recall": round(critical_recall, 4), "physical_reachability_accuracy": round(reachability, 4), "connected_component_correct": truth_components == predicted_components, "junction_accuracy": 1.0 if not connected_junctions else 0.0, "baseline": {"tp": base_tp, "fp": base_fp, "fn": base_fn, "precision": round(base_precision, 4), "recall": round(base_recall, 4), "f1": round(base_f1, 4)}, "runtime_ms": round((time.perf_counter() - started) * 1000, 2), "detector_inference_ms": detector_response.elapsed_ms, "topology_inference_ms": result.elapsed_ms, "errors": _errors(tp, fp, fn, len(mapping), len(entry["nodes"]))}
 
 
 def _components(nodes: list[str], edges: set[frozenset[str]]) -> list[frozenset[str]]:
@@ -136,7 +137,8 @@ def _aggregate(results: list[dict]) -> dict:
     tp, fp, fn = (sum(item[key] for item in results) for key in ("tp", "fp", "fn"))
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
-    return {"drawings": len(results), "tp": tp, "fp": fp, "fn": fn, "edge_precision": round(precision, 4), "edge_recall": round(recall, 4), "edge_f1": round(2 * precision * recall / (precision + recall), 4) if precision + recall else 0.0, "critical_edge_recall": round(sum(item["critical_edge_recall"] for item in results) / len(results), 4) if results else 0.0, "physical_reachability_accuracy": round(sum(item["physical_reachability_accuracy"] for item in results) / len(results), 4) if results else 0.0, "connected_component_accuracy": round(sum(item["connected_component_correct"] for item in results) / len(results), 4) if results else 0.0, "junction_accuracy": round(sum(item["junction_accuracy"] for item in results) / len(results), 4) if results else 0.0, "mean_runtime_ms": round(sum(item["runtime_ms"] for item in results) / len(results), 2) if results else 0.0, "baseline": _aggregate_baseline(results), "error_categories": Counter(error for item in results for error in item["errors"])}
+    candidate_tp, candidate_fn = (sum(item[key] for item in results) for key in ("candidate_tp", "candidate_fn"))
+    return {"drawings": len(results), "tp": tp, "fp": fp, "fn": fn, "candidate_edge_recall": round(candidate_tp / (candidate_tp + candidate_fn), 4) if candidate_tp + candidate_fn else 0.0, "edge_precision": round(precision, 4), "edge_recall": round(recall, 4), "edge_f1": round(2 * precision * recall / (precision + recall), 4) if precision + recall else 0.0, "critical_edge_recall": round(sum(item["critical_edge_recall"] for item in results) / len(results), 4) if results else 0.0, "physical_reachability_accuracy": round(sum(item["physical_reachability_accuracy"] for item in results) / len(results), 4) if results else 0.0, "connected_component_accuracy": round(sum(item["connected_component_correct"] for item in results) / len(results), 4) if results else 0.0, "junction_accuracy": round(sum(item["junction_accuracy"] for item in results) / len(results), 4) if results else 0.0, "mean_runtime_ms": round(sum(item["runtime_ms"] for item in results) / len(results), 2) if results else 0.0, "baseline": _aggregate_baseline(results), "error_categories": Counter(error for item in results for error in item["errors"])}
 
 
 def _aggregate_baseline(results: list[dict]) -> dict:

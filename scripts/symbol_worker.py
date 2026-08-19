@@ -65,7 +65,7 @@ def _nms(detections: list[dict]) -> list[dict]:
 
 def _proposals(tile: np.ndarray) -> list[tuple[int, int, int, int, bool]]:
     gray = cv2.cvtColor(tile, cv2.COLOR_BGR2GRAY)
-    mask = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)[1]
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     grouped = cv2.dilate(mask, np.ones((15, 15), np.uint8), iterations=1)
     contours, _ = cv2.findContours(grouped, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     raw = []
@@ -104,6 +104,59 @@ def _proposals(tile: np.ndarray) -> list[tuple[int, int, int, int, bool]]:
     return merged
 
 
+def _busbar_proposals(tile: np.ndarray) -> list[tuple[int, int, int, int]]:
+    """Detect thick bus strokes separately from thin branch conductors."""
+    gray = cv2.cvtColor(tile, cv2.COLOR_BGR2GRAY)
+    _, ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    horizontal = cv2.morphologyEx(
+        ink,
+        cv2.MORPH_OPEN,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (max(45, tile.shape[1] // 14), 1)),
+    )
+    count, _, stats, _ = cv2.connectedComponentsWithStats(horizontal)
+    output = []
+    for index in range(1, count):
+        x, y, width, height, area = (int(value) for value in stats[index])
+        if width < 85 or not 5 <= height <= 18 or area < 320:
+            continue
+        if x < 24 or y < 60 or x + width > tile.shape[1] - 24:
+            continue
+        pad_y = max(10, round(width * 0.1))
+        output.append((x, max(0, y - pad_y), x + width, min(tile.shape[0], y + height + pad_y)))
+    return output
+
+
+def _bus_coupler_proposals(tile: np.ndarray, buses: list[tuple[int, int, int, int]]) -> list[tuple[int, int, int, int]]:
+    """Use paired, same-level bus strokes to propose only a bounded central coupler box."""
+    gray = cv2.cvtColor(tile, cv2.COLOR_BGR2GRAY)
+    _, ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    output = []
+    for index, left in enumerate(sorted(buses)):
+        for right in sorted(buses)[index + 1 :]:
+            left_y, right_y = (left[1] + left[3]) / 2, (right[1] + right[3]) / 2
+            gap = right[0] - left[2]
+            if abs(left_y - right_y) > 14 or not 70 <= gap <= 250:
+                continue
+            size = round(min(110, max(56, gap * 0.48)))
+            center_x, center_y = round((left[2] + right[0]) / 2), round((left_y + right_y) / 2)
+            x1, y1 = max(0, center_x - size // 2), max(0, center_y - size // 2)
+            x2, y2 = min(tile.shape[1], center_x + size // 2), min(tile.shape[0], center_y + size // 2)
+            if np.count_nonzero(ink[y1:y2, x1:x2]) / max(1, (x2 - x1) * (y2 - y1)) >= 0.025:
+                output.append((x1, y1, x2, y2))
+    return output
+
+
+def _page_bus_coupler_proposals(image: np.ndarray, detections: list[dict]) -> list[tuple[int, int, int, int]]:
+    height, width = image.shape[:2]
+    buses = []
+    for item in detections:
+        if item["predicted_class"] != "busbar":
+            continue
+        x1, y1, x2, y2 = item["bbox_normalized"]
+        buses.append((round(x1 * width), round(y1 * height), round(x2 * width), round(y2 * height)))
+    return _bus_coupler_proposals(image, buses)
+
+
 def _detect(image: np.ndarray, request: dict, model: dict) -> list[dict]:
     height, width = image.shape[:2]
     tiles = (
@@ -117,6 +170,13 @@ def _detect(image: np.ndarray, request: dict, model: dict) -> list[dict]:
             origin_y : min(height, origin_y + request["tile_size"]),
             origin_x : min(width, origin_x + request["tile_size"]),
         ]
+        bus_boxes = _busbar_proposals(tile)
+        for x1, y1, x2, y2 in bus_boxes:
+            page_box = [(x1 + origin_x) / width, (y1 + origin_y) / height, (x2 + origin_x) / width, (y2 + origin_y) / height]
+            detections.append({"id": f"symbol_{len(detections) + 1:03}", "predicted_class": "busbar", "confidence": 0.88, "bbox_normalized": page_box, "polygon": [[page_box[0], page_box[1]], [page_box[2], page_box[1]], [page_box[2], page_box[3]], [page_box[0], page_box[3]]], "orientation_deg": 0, "tile_origin": [origin_x, origin_y] if request["mode"] == "tiled" else None, "detector_engine": "deterministic-busbar-thickness"})
+        for x1, y1, x2, y2 in _bus_coupler_proposals(tile, bus_boxes):
+            page_box = [(x1 + origin_x) / width, (y1 + origin_y) / height, (x2 + origin_x) / width, (y2 + origin_y) / height]
+            detections.append({"id": f"symbol_{len(detections) + 1:03}", "predicted_class": "bus_coupler", "confidence": 0.77, "bbox_normalized": page_box, "polygon": [[page_box[0], page_box[1]], [page_box[2], page_box[1]], [page_box[2], page_box[3]], [page_box[0], page_box[3]]], "orientation_deg": 0, "tile_origin": [origin_x, origin_y] if request["mode"] == "tiled" else None, "detector_engine": "deterministic-bus-coupler-geometry"})
         for x1, y1, x2, y2, is_busbar in _proposals(tile):
             if is_busbar:
                 class_name, confidence, engine = "busbar", 0.82, "deterministic-busbar-geometry"
@@ -167,6 +227,9 @@ def _detect(image: np.ndarray, request: dict, model: dict) -> list[dict]:
                     "detector_engine": engine,
                 }
             )
+    for x1, y1, x2, y2 in _page_bus_coupler_proposals(image, detections):
+        page_box = [x1 / width, y1 / height, x2 / width, y2 / height]
+        detections.append({"id": f"symbol_{len(detections) + 1:03}", "predicted_class": "bus_coupler", "confidence": 0.77, "bbox_normalized": page_box, "polygon": [[page_box[0], page_box[1]], [page_box[2], page_box[1]], [page_box[2], page_box[3]], [page_box[0], page_box[3]]], "orientation_deg": 0, "tile_origin": None, "detector_engine": "deterministic-bus-coupler-geometry"})
     return _nms(detections)
 
 

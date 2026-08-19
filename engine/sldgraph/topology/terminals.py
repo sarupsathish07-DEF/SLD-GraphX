@@ -45,7 +45,11 @@ def generate_terminals(symbols: list[TopologySymbol]) -> list[TerminalEvidence]:
 
 def snap_radius(symbol: TopologySymbol) -> float:
     x1, y1, x2, y2 = symbol.bbox_normalized
-    return max(0.014, min(0.055, hypot(x2 - x1, y2 - y1) * 0.42))
+    diagonal = hypot(x2 - x1, y2 - y1)
+    # Detector boxes vary more than renderer ground-truth boxes. Low-confidence
+    # boxes receive a bounded tolerance increase, never an unbounded global radius.
+    uncertainty = 1 + max(0.0, 0.82 - (symbol.confidence or 0.5)) * 0.3
+    return max(0.018, min(0.07, (0.009 + diagonal * 0.46) * uncertainty))
 
 
 def nearest_terminal(
@@ -56,4 +60,32 @@ def nearest_terminal(
         distance = hypot(point[0] - terminal.position[0], point[1] - terminal.position[1])
         if distance < best[1] and distance <= snap_radius(symbols[terminal.symbol_id]):
             best = (terminal, distance)
+    return best
+
+
+def nearest_point_on_segment(
+    point: tuple[float, float], start: tuple[float, float], end: tuple[float, float]
+) -> tuple[tuple[float, float], float]:
+    """Return the clamped projection and perpendicular distance in normalized space."""
+    dx, dy = end[0] - start[0], end[1] - start[1]
+    denominator = dx * dx + dy * dy
+    if denominator <= 1e-12:
+        return start, hypot(point[0] - start[0], point[1] - start[1])
+    fraction = max(0.0, min(1.0, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / denominator))
+    projected = (start[0] + fraction * dx, start[1] + fraction * dy)
+    return projected, hypot(point[0] - projected[0], point[1] - projected[1])
+
+
+def nearest_terminal_on_segment(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    terminals: list[TerminalEvidence],
+    symbols: dict[str, TopologySymbol],
+) -> tuple[TerminalEvidence | None, tuple[float, float], float]:
+    """Snap a terminal to a conductor span, not only to a simplified endpoint."""
+    best: tuple[TerminalEvidence | None, tuple[float, float], float] = (None, start, float("inf"))
+    for terminal in terminals:
+        projected, distance = nearest_point_on_segment(terminal.position, start, end)
+        if distance <= snap_radius(symbols[terminal.symbol_id]) and distance < best[2]:
+            best = terminal, projected, distance
     return best

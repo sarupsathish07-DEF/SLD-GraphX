@@ -9,6 +9,7 @@ import cv2
 from engine.sldgraph.topology.assemble import (
     build_candidates,
     build_gap_bridges,
+    build_terminal_corridor_candidates,
     repair_and_select,
     validate_graph,
 )
@@ -33,6 +34,7 @@ def reconstruct(image_path: str, symbols: list[TopologySymbol], texts: list[Topo
     terminals = generate_terminals(symbols)
     candidates = build_candidates(conductors, terminals, symbols)
     candidates.extend(build_gap_bridges(conductors, terminals, symbols))
+    candidates.extend(build_terminal_corridor_candidates(line_map, terminals, symbols, page))
     connections, issues = repair_and_select(candidates)
     issues = validate_graph(terminals, connections, issues)
     return TopologyResult(page=page, conductors=conductors, buses=buses, junctions=junctions, terminals=terminals, candidates=candidates, connections=connections, issues=issues, elapsed_ms=round((time.perf_counter() - started) * 1000, 2)), {"topology_line_map": line_map, "topology_skeleton": skeleton, "topology_protected_mask": mask}
