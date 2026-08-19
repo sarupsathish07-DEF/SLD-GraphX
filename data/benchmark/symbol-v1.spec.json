@@ -1,0 +1,8 @@
+{
+  "name": "symbol-v1",
+  "generator": "scripts/create_symbol_dataset.py",
+  "classes": ["power_transformer", "circuit_breaker", "disconnector", "current_transformer", "potential_transformer", "feeder_terminal", "load", "energy_source", "bus_coupler", "busbar"],
+  "style_split": {"train_validation_test": ["style_a", "style_b", "style_c"], "holdout": "style_d"},
+  "split_policy": "whole drawing before tiles; parent drawings never cross splits",
+  "tile_policy": {"tile_size": 640, "overlap": 96, "minimum_visibility": 0.6}
+}

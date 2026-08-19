@@ -1,0 +1,13 @@
+{
+  "name": "symbol-svm-v1",
+  "artifact": "symbol-svm-v1.joblib",
+  "artifact_sha256": "a9f862350459dfd87adeddcceb931c891216debd468f34efed620f30d83d74a2",
+  "artifact_size_bytes": 360199,
+  "architecture": "OpenCV HOG (64x64) plus calibrated linear SVM; deterministic busbar geometry",
+  "classes": ["power_transformer", "circuit_breaker", "disconnector", "current_transformer", "potential_transformer", "busbar", "feeder_terminal", "load", "energy_source", "bus_coupler"],
+  "dataset_manifest_sha256": "261cb45ee47606d90421ce0651943890570da681855b808b59e5510c4446b450",
+  "runtime": {"python": "3.10", "opencv_python_headless": "4.10.0.84", "scikit_learn": "1.5.2", "numpy": "1.26.4", "pydantic": "2.13.4"},
+  "validation": {"controlled_crop_macro_f1": 1.0, "note": "Crop classification validation; not detector AP."},
+  "deployment": {"local_only": true, "cloud_fallback": false, "onnx_or_openvino": "not implemented"},
+  "limitations": ["controlled synthetic training only", "busbar is rule-based", "artifact payload is local and ignored", "not a topology model"]
+}

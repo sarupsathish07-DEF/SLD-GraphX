@@ -2,6 +2,8 @@
 .venv-sldgraphx/
 .venv-sldgraphx-ocr/
 .venv-sldgraphx-ocr-clean/
+.venv-sldgraphx-detector-train/
+.venv-sldgraphx-detector/
 node_modules/
 apps/web/node_modules/
 apps/web/dist/
@@ -24,6 +26,9 @@ artifacts/experiments/*
 !artifacts/experiments/.gitkeep
 models/weights/*
 !models/weights/.gitkeep
+models/detector/*
+!models/detector/.gitkeep
+!models/detector/manifest.json
 data/external/*
 !data/external/.gitkeep
 data/synthetic/*
@@ -31,6 +36,10 @@ data/synthetic/*
 data/benchmark/ocr-v1/*.png
 data/benchmark/ocr-v1/manifest.json
 !data/benchmark/ocr-v1/.gitkeep
+data/benchmark/symbol-v1/*-manifest.json
+data/benchmark/symbol-v1/degradation/
+!data/benchmark/symbol-v1/.gitkeep
+!data/benchmark/symbol-v1.spec.json
 models/ocr/*
 !models/ocr/.gitkeep
 !models/ocr/manifest.json

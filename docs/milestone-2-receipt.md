@@ -23,7 +23,7 @@ Deliver a local, reviewable text-evidence path from an SLD page through OCR, con
 
 | Check | Result |
 | --- | --- |
-| Core tests | `25 passed` (`.venv-sldgraphx\Scripts\python.exe -m pytest -q`) |
+| Core tests | `26 passed` (`.venv-sldgraphx\Scripts\python.exe -m pytest -q`) |
 | Ruff | passed (`.venv-sldgraphx\Scripts\python.exe -m ruff check engine sldforge services scripts`) |
 | Frontend tests | `5 passed` (`npm.cmd test` in `apps/web`) |
 | Frontend lint / production build | passed (`npm.cmd run lint`; `npm.cmd run build`) |

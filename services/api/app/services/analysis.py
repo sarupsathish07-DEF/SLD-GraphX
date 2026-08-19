@@ -20,6 +20,8 @@ from services.api.app.db.entities import (
     DrawingRecord,
 )
 from services.api.app.services.ocr_worker import OcrWorkerError, recognize
+from services.api.app.services.symbol_worker import SymbolWorkerError, detect
+from services.api.app.services.symbols import associate_text_symbols, persist_symbol_detections
 from services.api.app.services.texts import persist_ocr_regions
 
 RENDER_ROOT = Path("var/renders")
@@ -128,7 +130,7 @@ def queue_analysis(drawing_id: str) -> str:
             raise ValueError("Drawing not found")
         session.add(
             AnalysisRunRecord(
-                id=run_id, drawing_id=drawing_id, status="queued", pipeline_version="m2"
+                id=run_id, drawing_id=drawing_id, status="queued", pipeline_version="m3"
             )
         )
         session.commit()
@@ -274,13 +276,37 @@ def run_analysis(drawing_id: str, run_id: str | None = None) -> str:
                 1,
                 "Conservative engineering semantic rules applied",
             )
+            symbol_regions = []
+            for page_number in range(1, len(masters) + 1):
+                analysis_image = output / f"page-{page_number:03}-analysis.png"
+                response = detect(analysis_image, page_number)
+                symbol_regions.append((page_number, response))
+                _store_json(
+                    session,
+                    run_id,
+                    output,
+                    "symbol_json",
+                    page_number,
+                    response.model_dump(mode="json"),
+                )
+            for page_number, response in symbol_regions:
+                persist_symbol_detections(session, run_id, drawing.id, page_number, response)
             _stage(
                 session,
                 run_id,
-                "text_association",
+                "symbol_detection",
                 "complete",
                 1,
-                "No raster equipment association inferred; SLDForge association is evaluated separately",
+                f"Detected {sum(len(item.detections) for _, item in symbol_regions)} local symbol candidate(s)",
+            )
+            associations = associate_text_symbols(session, run_id)
+            _stage(
+                session,
+                run_id,
+                "text_symbol_association",
+                "complete",
+                1,
+                f"Proposed {len(associations)} spatial-semantic text-to-symbol association(s)",
             )
             _stage(
                 session,
@@ -288,7 +314,7 @@ def run_analysis(drawing_id: str, run_id: str | None = None) -> str:
                 "complete",
                 "complete",
                 1,
-                "Milestone 2 local text intelligence complete",
+                "Milestone 3 local text and symbol intelligence complete",
             )
             run.status, run.finished_at = "complete", datetime.utcnow()
             session.commit()
@@ -296,7 +322,13 @@ def run_analysis(drawing_id: str, run_id: str | None = None) -> str:
         with SessionLocal() as session:
             run = session.get(AnalysisRunRecord, run_id)
             if run is not None:
-                stage = "ocr" if isinstance(exc, OcrWorkerError) else "processing"
+                stage = (
+                    "ocr"
+                    if isinstance(exc, OcrWorkerError)
+                    else "symbol_detection"
+                    if isinstance(exc, SymbolWorkerError)
+                    else "processing"
+                )
                 run.status, run.error_stage, run.error_message, run.finished_at = (
                     "failed",
                     stage,

@@ -52,6 +52,7 @@ class AnalysisRunRecord(Base):
     stages: Mapped[list["AnalysisStageRecord"]] = relationship(back_populates="analysis_run")
     artifacts: Mapped[list["ArtifactRecord"]] = relationship(back_populates="analysis_run")
     texts: Mapped[list["TextEvidenceRecord"]] = relationship(back_populates="analysis_run")
+    symbols: Mapped[list["SymbolEvidenceRecord"]] = relationship(back_populates="analysis_run")
 
 
 class AnalysisStageRecord(Base):
@@ -108,6 +109,9 @@ class TextEvidenceRecord(Base):
     review_actions: Mapped[list["TextReviewActionRecord"]] = relationship(
         back_populates="text_evidence"
     )
+    symbol_associations: Mapped[list["TextSymbolAssociationRecord"]] = relationship(
+        back_populates="text_evidence"
+    )
 
 
 class TextReviewActionRecord(Base):
@@ -122,3 +126,62 @@ class TextReviewActionRecord(Base):
     actor: Mapped[str] = mapped_column(String(64), default="engineer", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     text_evidence: Mapped[TextEvidenceRecord] = relationship(back_populates="review_actions")
+
+
+class SymbolEvidenceRecord(Base):
+    __tablename__ = "symbol_evidence"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    drawing_id: Mapped[str] = mapped_column(ForeignKey("drawings.id"), index=True)
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    predicted_class: Mapped[str] = mapped_column(String(64), nullable=False)
+    original_predicted_class: Mapped[str | None] = mapped_column(String(64))
+    confidence: Mapped[float | None] = mapped_column(Float)
+    bbox_normalized_json: Mapped[str] = mapped_column(Text, nullable=False)
+    polygon_normalized_json: Mapped[str] = mapped_column(Text, nullable=False)
+    orientation_deg: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tile_origin_json: Mapped[str | None] = mapped_column(Text)
+    engine: Mapped[str] = mapped_column(String(100), nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    provenance: Mapped[str] = mapped_column(String(100), nullable=False)
+    review_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    review_reason: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="symbols")
+    review_actions: Mapped[list["SymbolReviewActionRecord"]] = relationship(
+        back_populates="symbol_evidence"
+    )
+    text_associations: Mapped[list["TextSymbolAssociationRecord"]] = relationship(
+        back_populates="symbol_evidence"
+    )
+
+
+class SymbolReviewActionRecord(Base):
+    __tablename__ = "symbol_review_actions"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    symbol_evidence_id: Mapped[str] = mapped_column(ForeignKey("symbol_evidence.id"), index=True)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    old_class: Mapped[str | None] = mapped_column(String(64))
+    new_class: Mapped[str | None] = mapped_column(String(64))
+    old_bbox_json: Mapped[str | None] = mapped_column(Text)
+    new_bbox_json: Mapped[str | None] = mapped_column(Text)
+    actor: Mapped[str] = mapped_column(String(64), default="engineer", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    symbol_evidence: Mapped[SymbolEvidenceRecord] = relationship(back_populates="review_actions")
+
+
+class TextSymbolAssociationRecord(Base):
+    __tablename__ = "text_symbol_associations"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    text_evidence_id: Mapped[str] = mapped_column(ForeignKey("text_evidence.id"), index=True)
+    symbol_evidence_id: Mapped[str] = mapped_column(ForeignKey("symbol_evidence.id"), index=True)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    factors_json: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="proposed", nullable=False)
+    provenance: Mapped[str] = mapped_column(
+        String(100), default="spatial_semantic_rules", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    text_evidence: Mapped[TextEvidenceRecord] = relationship(back_populates="symbol_associations")
+    symbol_evidence: Mapped[SymbolEvidenceRecord] = relationship(back_populates="text_associations")

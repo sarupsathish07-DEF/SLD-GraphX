@@ -118,7 +118,8 @@ def test_uploaded_png_can_complete_persisted_preprocessing() -> None:
         "ocr",
         "text_normalization",
         "text_semantics",
-        "text_association",
+        "symbol_detection",
+        "text_symbol_association",
         "complete",
     ]
 
@@ -251,9 +252,33 @@ def test_text_evidence_is_persisted_reviewable_and_summarized() -> None:
             f"/api/texts/{texts[0]['id']}", data={"value": "FDR-11KV-03", "text_type": "feeder_id"}
         ).json()
         accepted = client.post(f"/api/texts/{texts[0]['id']}/accept").json()
+        symbols = client.get(f"/api/analyses/{analysis_id}/symbols").json()
+        symbol_summary = client.get(f"/api/analyses/{analysis_id}/symbol-summary").json()
+        verified_symbol = client.post(f"/api/symbols/{symbols[0]['id']}/verify").json()
+        manual = client.post(
+            f"/api/analyses/{analysis_id}/symbols",
+            data={
+                "drawing_id": drawing["id"],
+                "predicted_class": "load",
+                "bbox_json": "[0.4, 0.4, 0.6, 0.6]",
+            },
+        ).json()
+        invalid_manual = client.post(
+            f"/api/analyses/{analysis_id}/symbols",
+            data={
+                "drawing_id": drawing["id"],
+                "predicted_class": "load",
+                "bbox_json": "[0.7, 0.4, 0.6, 0.6]",
+            },
+        )
     assert texts[0]["raw_text"] == "FDR-11KV-03"
     assert retrieved["raw_text"] == "FDR-11KV-03"
     assert texts[0]["text_type"] == "feeder_id"
     assert summary["recognized"] == 1
     assert edited["engineer_value"] == "FDR-11KV-03"
     assert accepted["review_status"] == "accepted"
+    assert symbols[0]["predicted_class"] == "feeder_terminal"
+    assert symbol_summary["associated_labels"] == 1
+    assert verified_symbol["review_status"] == "verified"
+    assert manual["provenance"] == "engineer_added"
+    assert invalid_manual.status_code == 422

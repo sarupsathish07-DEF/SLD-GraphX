@@ -1,3 +1,4 @@
+import json
 from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
@@ -26,6 +27,14 @@ from services.api.app.services.ingestion import (
     store_drawing,
 )
 from services.api.app.services.ocr_worker import health as ocr_health
+from services.api.app.services.symbol_worker import health as symbol_health
+from services.api.app.services.symbols import (
+    add_manual_symbol,
+    symbol_by_id,
+    symbol_summary,
+    symbols_for_analysis,
+    update_symbol,
+)
 from services.api.app.services.texts import (
     text_by_id,
     text_summary,
@@ -52,7 +61,13 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "service": "sldgraph-x-api", "mode": "local", "ocr": ocr_health()}
+    return {
+        "status": "ok",
+        "service": "sldgraph-x-api",
+        "mode": "local",
+        "ocr": ocr_health(),
+        "detector": symbol_health(),
+    }
 
 
 @app.get("/api/bootstrap/demo")
@@ -156,12 +171,73 @@ def analysis_text_summary(analysis_id: str) -> dict:
     return text_summary(analysis_id)
 
 
+@app.get("/api/analyses/{analysis_id}/symbols")
+def symbols(analysis_id: str) -> list[dict]:
+    return symbols_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/symbol-summary")
+def analysis_symbol_summary(analysis_id: str) -> dict:
+    return symbol_summary(analysis_id)
+
+
 @app.get("/api/texts/{text_id}")
 def text(text_id: str) -> dict:
     try:
         return text_by_id(text_id)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/symbols/{symbol_id}")
+def symbol(symbol_id: str) -> dict:
+    try:
+        return symbol_by_id(symbol_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.patch("/api/symbols/{symbol_id}")
+def edit_symbol(
+    symbol_id: str,
+    predicted_class: str | None = Form(None),
+    bbox_json: str | None = Form(None),
+) -> dict:
+    try:
+        return update_symbol(
+            symbol_id,
+            "edit",
+            predicted_class,
+            json.loads(bbox_json) if bbox_json else None,
+        )
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/api/symbols/{symbol_id}/{action}")
+def review_symbol(symbol_id: str, action: str) -> dict:
+    if action not in {"accept", "reject", "verify"}:
+        raise HTTPException(422, "Unsupported symbol review action")
+    try:
+        return update_symbol(symbol_id, action)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/analyses/{analysis_id}/symbols", status_code=201)
+def add_symbol(
+    analysis_id: str,
+    drawing_id: str = Form(...),
+    page: int = Form(1),
+    predicted_class: str = Form(...),
+    bbox_json: str = Form(...),
+) -> dict:
+    try:
+        return add_manual_symbol(
+            analysis_id, drawing_id, page, predicted_class, json.loads(bbox_json)
+        )
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @app.patch("/api/texts/{text_id}")
