@@ -1,0 +1,347 @@
+{
+  "id": "fixture_radial_01",
+  "equipment": [
+    {
+      "id": "source_grid",
+      "equipment_id": "GRID-01",
+      "type": "energy_source",
+      "page": 1,
+      "geometry": {
+        "bbox": [
+          0.04,
+          0.43,
+          0.14,
+          0.57
+        ],
+        "polyline": [],
+        "rotation": 0
+      },
+      "attributes": {},
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "transformer_01",
+      "equipment_id": "TR-01",
+      "type": "power_transformer",
+      "page": 1,
+      "geometry": {
+        "bbox": [
+          0.21,
+          0.36,
+          0.34,
+          0.64
+        ],
+        "polyline": [],
+        "rotation": 0
+      },
+      "attributes": {},
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "bus_a",
+      "equipment_id": "BUS-A",
+      "type": "busbar",
+      "page": 1,
+      "geometry": {
+        "bbox": [
+          0.42,
+          0.46,
+          0.56,
+          0.54
+        ],
+        "polyline": [],
+        "rotation": 0
+      },
+      "attributes": {},
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "breaker_01",
+      "equipment_id": "CB-01",
+      "type": "circuit_breaker",
+      "page": 1,
+      "geometry": {
+        "bbox": [
+          0.63,
+          0.36,
+          0.74,
+          0.48
+        ],
+        "polyline": [],
+        "rotation": 0
+      },
+      "attributes": {},
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "ct_01",
+      "equipment_id": "CT-01",
+      "type": "current_transformer",
+      "page": 1,
+      "geometry": {
+        "bbox": [
+          0.8,
+          0.36,
+          0.9,
+          0.48
+        ],
+        "polyline": [],
+        "rotation": 0
+      },
+      "attributes": {},
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "feeder_01",
+      "equipment_id": "FDR-01",
+      "type": "feeder",
+      "page": 1,
+      "geometry": {
+        "bbox": [
+          0.92,
+          0.34,
+          0.99,
+          0.5
+        ],
+        "polyline": [],
+        "rotation": 0
+      },
+      "attributes": {},
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    }
+  ],
+  "terminals": [
+    {
+      "id": "source_grid_in",
+      "equipment_id": "source_grid",
+      "name": "IN",
+      "position": [
+        0.04,
+        0.5
+      ]
+    },
+    {
+      "id": "source_grid_out",
+      "equipment_id": "source_grid",
+      "name": "OUT",
+      "position": [
+        0.14,
+        0.5
+      ]
+    },
+    {
+      "id": "transformer_01_in",
+      "equipment_id": "transformer_01",
+      "name": "IN",
+      "position": [
+        0.21,
+        0.5
+      ]
+    },
+    {
+      "id": "transformer_01_out",
+      "equipment_id": "transformer_01",
+      "name": "OUT",
+      "position": [
+        0.34,
+        0.5
+      ]
+    },
+    {
+      "id": "bus_a_in",
+      "equipment_id": "bus_a",
+      "name": "IN",
+      "position": [
+        0.42,
+        0.5
+      ]
+    },
+    {
+      "id": "bus_a_out",
+      "equipment_id": "bus_a",
+      "name": "OUT",
+      "position": [
+        0.56,
+        0.5
+      ]
+    },
+    {
+      "id": "breaker_01_in",
+      "equipment_id": "breaker_01",
+      "name": "IN",
+      "position": [
+        0.63,
+        0.42
+      ]
+    },
+    {
+      "id": "breaker_01_out",
+      "equipment_id": "breaker_01",
+      "name": "OUT",
+      "position": [
+        0.74,
+        0.42
+      ]
+    },
+    {
+      "id": "ct_01_in",
+      "equipment_id": "ct_01",
+      "name": "IN",
+      "position": [
+        0.8,
+        0.42
+      ]
+    },
+    {
+      "id": "ct_01_out",
+      "equipment_id": "ct_01",
+      "name": "OUT",
+      "position": [
+        0.9,
+        0.42
+      ]
+    },
+    {
+      "id": "feeder_01_in",
+      "equipment_id": "feeder_01",
+      "name": "IN",
+      "position": [
+        0.92,
+        0.42000000000000004
+      ]
+    },
+    {
+      "id": "feeder_01_out",
+      "equipment_id": "feeder_01",
+      "name": "OUT",
+      "position": [
+        0.99,
+        0.42000000000000004
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "edge_01",
+      "from_terminal_id": "source_grid_out",
+      "to_terminal_id": "transformer_01_in",
+      "geometry": {
+        "bbox": null,
+        "polyline": [],
+        "rotation": 0
+      },
+      "switch_state": null,
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "edge_02",
+      "from_terminal_id": "transformer_01_out",
+      "to_terminal_id": "bus_a_in",
+      "geometry": {
+        "bbox": null,
+        "polyline": [],
+        "rotation": 0
+      },
+      "switch_state": null,
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "edge_03",
+      "from_terminal_id": "bus_a_out",
+      "to_terminal_id": "breaker_01_in",
+      "geometry": {
+        "bbox": null,
+        "polyline": [],
+        "rotation": 0
+      },
+      "switch_state": null,
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "edge_04",
+      "from_terminal_id": "breaker_01_out",
+      "to_terminal_id": "ct_01_in",
+      "geometry": {
+        "bbox": null,
+        "polyline": [],
+        "rotation": 0
+      },
+      "switch_state": null,
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "edge_05",
+      "from_terminal_id": "ct_01_out",
+      "to_terminal_id": "feeder_01_in",
+      "geometry": {
+        "bbox": null,
+        "polyline": [],
+        "rotation": 0
+      },
+      "switch_state": null,
+      "confidence": 1.0,
+      "provenance": [
+        "synthetic_ground_truth"
+      ],
+      "review_status": "pending"
+    }
+  ],
+  "evidence": [],
+  "feeder_paths": [
+    {
+      "feeder_equipment_id": "feeder_01",
+      "source_equipment_id": "source_grid",
+      "equipment_path": [
+        "source_grid",
+        "transformer_01",
+        "bus_a",
+        "breaker_01",
+        "ct_01",
+        "feeder_01"
+      ],
+      "confidence": 1.0,
+      "active": true
+    }
+  ],
+  "review_issues": []
+}

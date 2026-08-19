@@ -1,0 +1,1 @@
+"""Synthetic electrical topology templates."""
