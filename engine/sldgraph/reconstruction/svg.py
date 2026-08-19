@@ -15,9 +15,9 @@ def render_svg(graph: ElectricalGraph, width: int = 1280, height: int = 680) -> 
             terminal_map[connection.to_terminal_id],
         )
         state = (
-            "#f0a542"
+            "#a54224"
             if connection.switch_state and connection.switch_state.value == "open"
-            else "#47d7c8"
+            else "#30332f"
         )
         strokes.append(
             "<line "
@@ -25,7 +25,7 @@ def render_svg(graph: ElectricalGraph, width: int = 1280, height: int = 680) -> 
             f'y1="{start.position[1] * height:.0f}" '
             f'x2="{end.position[0] * width:.0f}" '
             f'y2="{end.position[1] * height:.0f}" '
-            f'stroke="{state}" stroke-width="4"/>'
+            f'stroke="{state}" stroke-width="4" stroke-linecap="round"/>'
         )
     nodes = []
     for item in graph.equipment:
@@ -34,18 +34,18 @@ def render_svg(graph: ElectricalGraph, width: int = 1280, height: int = 680) -> 
         nodes.append(
             "<rect "
             f'x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" '
-            'rx="8" fill="#162435" stroke="#7ee6db" stroke-width="2"/>'
+            'rx="6" fill="#f8f7f2" stroke="#30332f" stroke-width="2"/>'
         )
         nodes.append(
             "<text "
             f'x="{x + w / 2:.0f}" y="{y + h / 2 + 5:.0f}" '
-            'fill="#f1f8fa" font-size="15" text-anchor="middle" font-family="Arial">'
+            'fill="#222522" font-size="15" text-anchor="middle" font-family="Arial">'
             f"{escape(item.equipment_id)}</text>"
         )
     opening = (
         '<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {width} {height}" role="img" '
         'aria-label="Clean reconstructed electrical single line diagram">'
-        '<rect width="100%" height="100%" fill="#0c1420"/>'
+        '<rect width="100%" height="100%" fill="#f8f7f2"/>'
     )
     return opening + "".join(strokes) + "".join(nodes) + "</svg>"

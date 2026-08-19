@@ -1,0 +1,8 @@
+:root {
+  --bg: #161615; --surface-0: #1b1b1a; --surface-1: #222221; --surface-2: #2a2a28;
+  --line: rgba(255,255,255,.075); --line-strong: rgba(255,255,255,.13);
+  --text: #f1f0ec; --muted: #a4a39c; --quiet: #74746e; --accent: #68afa8;
+  --green: #78bd8f; --amber: #d9ae63; --red: #d4776d; --radius: 12px;
+  --ease: cubic-bezier(.2,.8,.2,1); --fast: 160ms; --normal: 220ms;
+}
+@media (prefers-reduced-motion: reduce) { :root { --fast: 0ms; --normal: 0ms; } }

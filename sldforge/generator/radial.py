@@ -26,6 +26,7 @@ def build_radial_fixture() -> ElectricalGraph:
             equipment_id=label,
             type=kind,
             geometry=Geometry(bbox=bbox),
+            attributes={"rating": "33/11 kV · 25 MVA" if kind is EquipmentType.POWER_TRANSFORMER else "11 kV · 630 A"},
             confidence=1.0,
             provenance=provenance,
         )

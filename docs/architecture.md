@@ -1,5 +1,5 @@
 # Architecture
 
-`apps/web` is a React/TypeScript client. `services/api` owns REST and SQLite persistence. `engine/sldgraph` owns canonical models, graph reasoning, validation, and exporters. `sldforge` creates controlled synthetic drawings and ground truth.
+`apps/web` is a React/TypeScript client. `services/api` owns REST, SQLite persistence, controlled upload/artifact storage, and background preprocessing. `engine/sldgraph` owns canonical models, graph reasoning, inspection, validation, and exporters. `sldforge` creates graph-first controlled synthetic drawings and ground truth.
 
-All ingestion branches converge on the canonical `ElectricalGraph`. Evidence/provenance stays attached to inferred graph objects. Perception adapters may change without changing electrical reasoning.
+PNG/JPEG/PDF ingestion currently converges on persisted document evidence and preprocessing artifacts; later perception branches converge on the canonical `ElectricalGraph`. Evidence/provenance stays attached to inferred graph objects. Perception adapters may change without changing electrical reasoning.

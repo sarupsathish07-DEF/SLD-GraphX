@@ -1,5 +1,7 @@
 # Product specification
 
-SLDGraph-X is intended to convert SLD evidence into a reviewable canonical electrical graph. P0 will accept PNG, JPEG and raster PDF; it will preserve raw evidence, construct terminal-aware connectivity, identify sources and feeders, rank topology-critical uncertainty, and export JSON/CSV.
+SLDGraph-X will convert SLD evidence into a reviewable canonical electrical graph. Milestone 1 implements the safe local document foundation: persistent projects/drawings/analysis runs, controlled storage, SHA-256, PDF/raster inspection, asynchronous persisted stages, deterministic preprocessing, and an engineering drawing workspace.
 
-The product is local-first. A user reviews consequential uncertainty rather than trusting silent topology guesses. DXF/vector PDF, OCR, symbol detection, and scenario refinement are layered additions; a graph connectivity toggle is not power-flow simulation.
+The current supported inputs are PNG, JPEG, and PDF. Input inspection records page count, dimensions where available, native-text and vector evidence counts, embedded image counts, and a recommended raster/vector/hybrid route. No semantic inference is presented as if it has run.
+
+Later milestones add OCR, symbol detection, text association, topology reconstruction, review/correction, DXF/vector support, and structured export. Local graph connectivity reasoning exists only for controlled SLDForge fixtures; it is not power-flow simulation.

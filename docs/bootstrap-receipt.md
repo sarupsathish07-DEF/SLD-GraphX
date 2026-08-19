@@ -10,7 +10,7 @@ Date: 2026-08-19
 - SQLite initialization, local CORS API, and `GET /api/health`.
 - Canonical Pydantic electrical graph contract with equipment, terminals, connections, evidence, provenance, review status, and feeder paths.
 - Deterministic SLDForge radial graph fixture, active source-to-feeder graph reasoning, basic clean SVG renderer, and persisted demo artifacts.
-- Premium dark engineering UI that consumes the local API and renders the same graph as SVG and React Flow topology.
+- Initial engineering UI shell that consumed the local API and rendered the same graph as SVG and React Flow topology; its visual direction was subsequently superseded.
 - Base docs, IDE settings, setup/dev/test scripts, model/data registers, and local-first safety boundaries.
 
 ## Verified commands and results
@@ -27,8 +27,8 @@ Date: 2026-08-19
 
 ## Acceptance status
 
-Backend, frontend automated, and local-service startup gates pass. The in-app browser runtime failed before page attachment with a local kernel-assets error. One independent repository-local Playwright/Chrome attempt was also made; Chrome launched but the test did not complete or produce artifacts within the bounded check. The mandated live visual inspection and screenshot evidence are therefore **UNAVAILABLE**, not passed. No product visual claim is made from automated tests alone.
+Backend, frontend automated, and local-service startup gates pass. Automated screenshot capture was unavailable: the in-app browser runtime failed before page attachment and one bounded local Playwright/Chrome attempt did not complete. The owner then completed the supplied human visual checklist and confirmed the page, SVG, React Flow topology, layout, and console state pass functional visual verification. The initial visual design direction was rejected and is being replaced before Milestone 1 frontend work continues.
 
 ## Known limitations / next milestone
 
-The fixture is a graph-to-UI proof, not image understanding. Raster/PDF ingestion, OpenCV conductor extraction, OCR, symbol detection, DXF/vector parsing, persistence of analysis history, edits, exports, and measured experiments remain unimplemented. The next technical milestone is controlled SLDForge expansion plus PNG/PDF ingestion and evidence/progress persistence.
+The fixture is a graph-to-UI proof, not image understanding. Its original visual direction was rejected after functional acceptance. Raster/PDF ingestion, controlled SLDForge expansion, analysis history, preprocessing evidence, and the reset UI were delivered in Milestone 1; see `docs/milestone-1-receipt.md`. Perception, OCR, DXF/vector parsing, edits, exports, and measured model experiments remain subsequent work.
