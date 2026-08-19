@@ -1,4 +1,5 @@
 """Model acquisition entry point; intentionally has no undeclared downloads yet."""
+
 import json
 from pathlib import Path
 

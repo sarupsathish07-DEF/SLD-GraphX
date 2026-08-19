@@ -35,9 +35,31 @@ def inspect_input(path: Path) -> InputInspection:
         with Image.open(path) as image:
             image.verify()
         with Image.open(path) as image:
-            return InputInspection(input_type=InputType.RASTER_IMAGE, page_count=1, width=image.width, height=image.height, has_native_text=False, native_text_count=0, has_vector_drawings=False, vector_primitive_count=0, embedded_image_count=1, recommended_pipeline="raster")
+            return InputInspection(
+                input_type=InputType.RASTER_IMAGE,
+                page_count=1,
+                width=image.width,
+                height=image.height,
+                has_native_text=False,
+                native_text_count=0,
+                has_vector_drawings=False,
+                vector_primitive_count=0,
+                embedded_image_count=1,
+                recommended_pipeline="raster",
+            )
     if suffix != ".pdf":
-        return InputInspection(input_type=InputType.UNKNOWN, page_count=0, width=None, height=None, has_native_text=False, native_text_count=0, has_vector_drawings=False, vector_primitive_count=0, embedded_image_count=0, recommended_pipeline="unsupported")
+        return InputInspection(
+            input_type=InputType.UNKNOWN,
+            page_count=0,
+            width=None,
+            height=None,
+            has_native_text=False,
+            native_text_count=0,
+            has_vector_drawings=False,
+            vector_primitive_count=0,
+            embedded_image_count=0,
+            recommended_pipeline="unsupported",
+        )
     # Use a memory stream: PyMuPDF can retain a Windows file handle after a
     # malformed-document exception, which would otherwise prevent cleanup.
     with fitz.open(stream=path.read_bytes(), filetype="pdf") as document:
@@ -50,5 +72,26 @@ def inspect_input(path: Path) -> InputInspection:
             vector_count += len(page.get_drawings())
             image_count += len(page.get_images(full=True))
             width, height = round(page.rect.width), round(page.rect.height)
-    kind = InputType.HYBRID_PDF if vector_count and image_count else InputType.VECTOR_PDF if vector_count else InputType.RASTER_PDF
-    return InputInspection(input_type=kind, page_count=page_count, width=width, height=height, has_native_text=bool(text_count), native_text_count=text_count, has_vector_drawings=bool(vector_count), vector_primitive_count=vector_count, embedded_image_count=image_count, recommended_pipeline="hybrid_ready" if kind is InputType.HYBRID_PDF else "vector_ready" if kind is InputType.VECTOR_PDF else "raster")
+    kind = (
+        InputType.HYBRID_PDF
+        if vector_count and image_count
+        else InputType.VECTOR_PDF
+        if vector_count
+        else InputType.RASTER_PDF
+    )
+    return InputInspection(
+        input_type=kind,
+        page_count=page_count,
+        width=width,
+        height=height,
+        has_native_text=bool(text_count),
+        native_text_count=text_count,
+        has_vector_drawings=bool(vector_count),
+        vector_primitive_count=vector_count,
+        embedded_image_count=image_count,
+        recommended_pipeline="hybrid_ready"
+        if kind is InputType.HYBRID_PDF
+        else "vector_ready"
+        if kind is InputType.VECTOR_PDF
+        else "raster",
+    )

@@ -73,10 +73,22 @@ def test_jpeg_pdf_and_invalid_upload_behavior() -> None:
     pdf_data = pdf.tobytes()
     with TestClient(app) as client:
         project = client.post("/api/projects", data={"name": "Format Test"}).json()
-        jpg = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("drawing.jpg", jpeg.getvalue(), "image/jpeg")})
-        uploaded_pdf = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("drawing.pdf", pdf_data, "application/pdf")})
-        invalid = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("drawing.txt", b"not supported", "text/plain")})
-        malformed = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("broken.pdf", b"not a PDF", "application/pdf")})
+        jpg = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("drawing.jpg", jpeg.getvalue(), "image/jpeg")},
+        )
+        uploaded_pdf = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("drawing.pdf", pdf_data, "application/pdf")},
+        )
+        invalid = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("drawing.txt", b"not supported", "text/plain")},
+        )
+        malformed = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("broken.pdf", b"not a PDF", "application/pdf")},
+        )
     assert jpg.status_code == 201 and jpg.json()["input_type"] == "raster_image"
     assert uploaded_pdf.status_code == 201
     assert uploaded_pdf.json()["page_count"] == 1
@@ -90,12 +102,25 @@ def test_uploaded_png_can_complete_persisted_preprocessing() -> None:
     image.save(payload, format="PNG")
     with TestClient(app) as client:
         project = client.post("/api/projects", data={"name": "Analysis Test"}).json()
-        drawing = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("sld.png", payload.getvalue(), "image/png")}).json()
+        drawing = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("sld.png", payload.getvalue(), "image/png")},
+        ).json()
         accepted = client.post(f"/api/drawings/{drawing['id']}/analyze")
         result = client.get(f"/api/analyses/{accepted.json()['analysis_run_id']}")
     assert accepted.status_code == 202
     assert result.json()["status"] == "complete"
-    assert [stage["stage"] for stage in result.json()["stages"]] == ["ingestion", "inspection", "rendering", "preprocessing", "complete"]
+    assert [stage["stage"] for stage in result.json()["stages"]] == [
+        "ingestion",
+        "inspection",
+        "rendering",
+        "preprocessing",
+        "ocr",
+        "text_normalization",
+        "text_semantics",
+        "text_association",
+        "complete",
+    ]
 
 
 def test_artifacts_are_listed_and_safely_served() -> None:
@@ -104,11 +129,24 @@ def test_artifacts_are_listed_and_safely_served() -> None:
     image.save(payload, format="PNG")
     with TestClient(app) as client:
         project = client.post("/api/projects", data={"name": "Artifact Test"}).json()
-        drawing = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("drawing.png", payload.getvalue(), "image/png")}).json()
-        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()["analysis_run_id"]
+        drawing = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("drawing.png", payload.getvalue(), "image/png")},
+        ).json()
+        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()[
+            "analysis_run_id"
+        ]
         artifacts = client.get(f"/api/analyses/{analysis_id}/artifacts").json()
         response = client.get(f"/api/artifacts/{artifacts[0]['id']}")
-    assert {item["type"] for item in artifacts} >= {"source_reference", "display", "analysis", "grayscale", "contrast", "binary", "line_emphasized"}
+    assert {item["type"] for item in artifacts} >= {
+        "source_reference",
+        "display",
+        "analysis",
+        "grayscale",
+        "contrast",
+        "binary",
+        "line_emphasized",
+    }
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
 
@@ -119,7 +157,10 @@ def test_completed_analysis_reopens_after_new_application_lifespan() -> None:
     image.save(payload, format="PNG")
     with TestClient(app) as first:
         project = first.post("/api/projects", data={"name": "Restart Test"}).json()
-        drawing = first.post(f"/api/projects/{project['id']}/drawings", files={"file": ("restart.png", payload.getvalue(), "image/png")}).json()
+        drawing = first.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("restart.png", payload.getvalue(), "image/png")},
+        ).json()
         analysis_id = first.post(f"/api/drawings/{drawing['id']}/analyze").json()["analysis_run_id"]
     with TestClient(app) as second:
         history = second.get(f"/api/drawings/{drawing['id']}")
@@ -134,7 +175,10 @@ def test_real_sldforge_raster_runs_through_upload_and_analysis() -> None:
     render_png(build_radial_fixture()).save(buffer, "PNG")
     with TestClient(app) as client:
         project = client.post("/api/projects", data={"name": "SLDForge Loop"}).json()
-        drawing = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("sldforge-radial.png", buffer.getvalue(), "image/png")}).json()
+        drawing = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("sldforge-radial.png", buffer.getvalue(), "image/png")},
+        ).json()
         analysis_id = queue_analysis(drawing["id"])
         run_analysis(drawing["id"], analysis_id)
         result = client.get(f"/api/analyses/{analysis_id}").json()
@@ -151,11 +195,18 @@ def test_preprocessing_retains_thin_conductor_and_junction_dot() -> None:
     image.save(payload, format="PNG")
     with TestClient(app) as client:
         project = client.post("/api/projects", data={"name": "Preservation Test"}).json()
-        drawing = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("thin-line.png", payload.getvalue(), "image/png")}).json()
-        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()["analysis_run_id"]
+        drawing = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("thin-line.png", payload.getvalue(), "image/png")},
+        ).json()
+        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()[
+            "analysis_run_id"
+        ]
         artifacts = client.get(f"/api/analyses/{analysis_id}/artifacts").json()
         binary = next(item for item in artifacts if item["type"] == "binary")
-        binary_image = Image.open(BytesIO(client.get(f"/api/artifacts/{binary['id']}").content)).convert("L")
+        binary_image = Image.open(
+            BytesIO(client.get(f"/api/artifacts/{binary['id']}").content)
+        ).convert("L")
     assert binary_image.getpixel((20, 60)) < 100
     assert binary_image.getpixel((120, 60)) < 100
 
@@ -166,10 +217,43 @@ def test_missing_controlled_source_records_a_failed_analysis() -> None:
     image.save(payload, format="PNG")
     with TestClient(app) as client:
         project = client.post("/api/projects", data={"name": "Failure Lifecycle"}).json()
-        drawing = client.post(f"/api/projects/{project['id']}/drawings", files={"file": ("temporary.png", payload.getvalue(), "image/png")}).json()
+        drawing = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("temporary.png", payload.getvalue(), "image/png")},
+        ).json()
         controlled_source = Path("var/uploads") / project["id"] / drawing["id"] / "original.png"
         controlled_source.unlink()
-        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()["analysis_run_id"]
+        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()[
+            "analysis_run_id"
+        ]
         result = client.get(f"/api/analyses/{analysis_id}").json()
     assert result["status"] == "failed"
     assert result["error_stage"] == "processing"
+
+
+def test_text_evidence_is_persisted_reviewable_and_summarized() -> None:
+    image = Image.new("RGB", (80, 40), "white")
+    payload = BytesIO()
+    image.save(payload, format="PNG")
+    with TestClient(app) as client:
+        project = client.post("/api/projects", data={"name": "Text Review"}).json()
+        drawing = client.post(
+            f"/api/projects/{project['id']}/drawings",
+            files={"file": ("text.png", payload.getvalue(), "image/png")},
+        ).json()
+        analysis_id = client.post(f"/api/drawings/{drawing['id']}/analyze").json()[
+            "analysis_run_id"
+        ]
+        texts = client.get(f"/api/analyses/{analysis_id}/texts").json()
+        summary = client.get(f"/api/analyses/{analysis_id}/text-summary").json()
+        retrieved = client.get(f"/api/texts/{texts[0]['id']}").json()
+        edited = client.patch(
+            f"/api/texts/{texts[0]['id']}", data={"value": "FDR-11KV-03", "text_type": "feeder_id"}
+        ).json()
+        accepted = client.post(f"/api/texts/{texts[0]['id']}/accept").json()
+    assert texts[0]["raw_text"] == "FDR-11KV-03"
+    assert retrieved["raw_text"] == "FDR-11KV-03"
+    assert texts[0]["text_type"] == "feeder_id"
+    assert summary["recognized"] == 1
+    assert edited["engineer_value"] == "FDR-11KV-03"
+    assert accepted["review_status"] == "accepted"

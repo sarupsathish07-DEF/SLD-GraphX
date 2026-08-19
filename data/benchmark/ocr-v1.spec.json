@@ -1,0 +1,9 @@
+{
+  "name": "ocr-v1",
+  "version": 1,
+  "generator": "scripts/create_ocr_benchmark.py",
+  "fixtures": ["radial", "dual_transformer", "sectionalized_bus"],
+  "seeds": [101, 202, 303],
+  "degradations": ["clean", "blur", "jpeg_compression", "low_contrast", "brightness_shift", "small_skew", "faded_line_proximity"],
+  "split_policy": "drawing-level; no training use of this frozen test set"
+}

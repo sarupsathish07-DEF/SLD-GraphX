@@ -25,6 +25,13 @@ from services.api.app.services.ingestion import (
     serialize_drawing,
     store_drawing,
 )
+from services.api.app.services.ocr_worker import health as ocr_health
+from services.api.app.services.texts import (
+    text_by_id,
+    text_summary,
+    texts_for_analysis,
+    update_text,
+)
 
 
 @asynccontextmanager
@@ -44,8 +51,8 @@ app.add_middleware(
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "sldgraph-x-api", "mode": "local"}
+def health() -> dict:
+    return {"status": "ok", "service": "sldgraph-x-api", "mode": "local", "ocr": ocr_health()}
 
 
 @app.get("/api/bootstrap/demo")
@@ -54,7 +61,12 @@ def demo() -> dict:
 
 
 def project_payload(project) -> dict:
-    return {"id": project.id, "name": project.name, "description": project.description, "created_at": project.created_at.isoformat()}
+    return {
+        "id": project.id,
+        "name": project.name,
+        "description": project.description,
+        "created_at": project.created_at.isoformat(),
+    }
 
 
 @app.post("/api/projects", status_code=201)
@@ -82,8 +94,25 @@ def project_drawings(project_id: str) -> list[dict]:
 def drawing(drawing_id: str) -> dict:
     record = get_drawing(drawing_id)
     with SessionLocal() as session:
-        runs = list(session.scalars(select(AnalysisRunRecord).where(AnalysisRunRecord.drawing_id == drawing_id).order_by(AnalysisRunRecord.created_at.desc())))
-    return {"drawing": serialize_drawing(record), "analyses": [{"id": run.id, "status": run.status, "created_at": run.created_at.isoformat(), "finished_at": run.finished_at.isoformat() if run.finished_at else None} for run in runs]}
+        runs = list(
+            session.scalars(
+                select(AnalysisRunRecord)
+                .where(AnalysisRunRecord.drawing_id == drawing_id)
+                .order_by(AnalysisRunRecord.created_at.desc())
+            )
+        )
+    return {
+        "drawing": serialize_drawing(record),
+        "analyses": [
+            {
+                "id": run.id,
+                "status": run.status,
+                "created_at": run.created_at.isoformat(),
+                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            }
+            for run in runs
+        ],
+    }
 
 
 @app.post("/api/projects/{project_id}/drawings", status_code=201)
@@ -117,10 +146,50 @@ def artifacts(analysis_id: str) -> list[dict]:
         raise HTTPException(404, str(exc)) from exc
 
 
+@app.get("/api/analyses/{analysis_id}/texts")
+def texts(analysis_id: str) -> list[dict]:
+    return texts_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/text-summary")
+def analysis_text_summary(analysis_id: str) -> dict:
+    return text_summary(analysis_id)
+
+
+@app.get("/api/texts/{text_id}")
+def text(text_id: str) -> dict:
+    try:
+        return text_by_id(text_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.patch("/api/texts/{text_id}")
+def edit_text(
+    text_id: str, value: str | None = Form(None), text_type: str | None = Form(None)
+) -> dict:
+    try:
+        return update_text(text_id, value, text_type, "edit")
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/texts/{text_id}/{action}")
+def review_text(text_id: str, action: str) -> dict:
+    if action not in {"accept", "reject", "unknown"}:
+        raise HTTPException(422, "Unsupported review action")
+    try:
+        return update_text(text_id, None, None, action)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
 @app.get("/api/artifacts/{artifact_id}")
 def artifact(artifact_id: str) -> FileResponse:
     try:
         path, mime_type = artifact_path(artifact_id)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
-    return FileResponse(path, media_type=mime_type, headers={"Cache-Control": "private, max-age=3600"})
+    return FileResponse(
+        path, media_type=mime_type, headers={"Cache-Control": "private, max-age=3600"}
+    )

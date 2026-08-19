@@ -1,5 +1,7 @@
 .venv/
 .venv-sldgraphx/
+.venv-sldgraphx-ocr/
+.venv-sldgraphx-ocr-clean/
 node_modules/
 apps/web/node_modules/
 apps/web/dist/
@@ -26,4 +28,10 @@ data/external/*
 !data/external/.gitkeep
 data/synthetic/*
 !data/synthetic/.gitkeep
+data/benchmark/ocr-v1/*.png
+data/benchmark/ocr-v1/manifest.json
+!data/benchmark/ocr-v1/.gitkeep
+models/ocr/*
+!models/ocr/.gitkeep
+!models/ocr/manifest.json
 *.pyc

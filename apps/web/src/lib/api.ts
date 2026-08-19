@@ -5,6 +5,7 @@ export type Drawing = { id: string; project_id: string; original_filename: strin
 export type Analysis = { id: string; drawing_id: string; status: string; error_message?: string | null; stages: { stage: string; status: string; progress: number; message: string }[] };
 export type Artifact = { id: string; type: string; mime_type: string; metadata: { width: number; height: number; page: number; generation_configuration: Record<string, unknown> } };
 export type DrawingHistory = { drawing: Drawing; analyses: { id: string; status: string; created_at: string; finished_at: string | null }[] };
+export type TextEvidence = { id: string; raw_text: string; normalized_text: string; text_type: string; confidence_ocr: number; confidence_normalization: number; confidence_semantic: number; bbox_normalized: [number, number, number, number]; polygon_normalized: [number, number][]; page: number; engine: string; model: string; review_status: string; engineer_value: string | null; engineer_text_type: string | null; association: { selected_entity: string | null } };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${base}${path}`, init);
@@ -21,5 +22,9 @@ export const api = {
   analyze: (drawingId: string) => request<{ analysis_run_id: string }>(`/api/drawings/${drawingId}/analyze`, { method: "POST" }),
   analysis: (id: string) => request<Analysis>(`/api/analyses/${id}`),
   artifacts: (id: string) => request<Artifact[]>(`/api/analyses/${id}/artifacts`),
+  texts: (id: string) => request<TextEvidence[]>(`/api/analyses/${id}/texts`),
+  textSummary: (id: string) => request<{ recognized: number; by_type: Record<string, number>; needs_review: number }>(`/api/analyses/${id}/text-summary`),
+  updateText: (id: string, value: string, textType: string) => request<TextEvidence>(`/api/texts/${id}`, { method: "PATCH", body: new URLSearchParams({ value, text_type: textType }) }),
+  reviewText: (id: string, action: "accept" | "reject" | "unknown") => request<TextEvidence>(`/api/texts/${id}/${action}`, { method: "POST" }),
   artifactUrl: (id: string) => `${base}/api/artifacts/${id}`,
 };

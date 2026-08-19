@@ -1,4 +1,5 @@
 """Generate a small ignored, reproducible SLDForge development corpus."""
+
 import sys
 from pathlib import Path
 

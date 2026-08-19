@@ -16,4 +16,10 @@ This is a meaningful native OpenCV and dependency-surface conflict. PaddleOCR wa
 
 ## Resulting boundary
 
-`engine.sldgraph.ocr.adapter` now defines a dependency-free local `OcrAdapter` protocol and an explicit `UnavailableOcrAdapter`. It raises instead of inventing text or making an online fallback. A later isolated environment or compatibility-tested lockfile is required before an actual PaddleOCR smoke run.
+`engine.sldgraph.ocr.adapter` defines a dependency-free local `OcrAdapter` protocol and an explicit `UnavailableOcrAdapter`. It raises instead of inventing text or making an online fallback.
+
+## Isolated runtime result
+
+The initially evaluated Paddle 3.3.1 / legacy PaddleOCR 2.7.3 pairing failed during real CPU oneDNN model export. That failure remained confined to the disposable OCR environment. The accepted local worker is `.venv-sldgraphx-ocr-clean` with `paddlepaddle==2.6.2`, `paddleocr==2.7.3`, `numpy==1.26.4`, `protobuf==3.20.2`, and OpenCV 4.6.0.66 packages. Both imports and `pip check` passed.
+
+The real six-label smoke initialized PP-OCRv3 detection, PP-OCRv4 recognition, and angle classification and recognized `FDR-11KV-03`, `CB-07`, `TR-01`, `11 kV`, `630 A`, and `25 MVA` exactly. Prepared models are copied to `models/ocr/paddle` and referenced explicitly by the worker, so normal inference does not require the user-profile cache or a network request. See the model manifest for file hashes.

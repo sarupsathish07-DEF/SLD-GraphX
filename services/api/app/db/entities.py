@@ -51,6 +51,7 @@ class AnalysisRunRecord(Base):
     drawing: Mapped[DrawingRecord] = relationship(back_populates="analyses")
     stages: Mapped[list["AnalysisStageRecord"]] = relationship(back_populates="analysis_run")
     artifacts: Mapped[list["ArtifactRecord"]] = relationship(back_populates="analysis_run")
+    texts: Mapped[list["TextEvidenceRecord"]] = relationship(back_populates="analysis_run")
 
 
 class AnalysisStageRecord(Base):
@@ -78,3 +79,46 @@ class ArtifactRecord(Base):
     metadata_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="artifacts")
+
+
+class TextEvidenceRecord(Base):
+    __tablename__ = "text_evidence"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    drawing_id: Mapped[str] = mapped_column(ForeignKey("drawings.id"), index=True)
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_text: Mapped[str] = mapped_column(Text, nullable=False)
+    text_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    confidence_ocr: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence_normalization: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence_semantic: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_normalized_json: Mapped[str] = mapped_column(Text, nullable=False)
+    polygon_normalized_json: Mapped[str] = mapped_column(Text, nullable=False)
+    rotation_deg: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    engine: Mapped[str] = mapped_column(String(100), nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    provenance: Mapped[str] = mapped_column(String(100), nullable=False)
+    review_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    engineer_value: Mapped[str | None] = mapped_column(Text)
+    engineer_text_type: Mapped[str | None] = mapped_column(String(64))
+    association_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="texts")
+    review_actions: Mapped[list["TextReviewActionRecord"]] = relationship(
+        back_populates="text_evidence"
+    )
+
+
+class TextReviewActionRecord(Base):
+    __tablename__ = "text_review_actions"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    text_evidence_id: Mapped[str] = mapped_column(ForeignKey("text_evidence.id"), index=True)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    old_text_type: Mapped[str | None] = mapped_column(String(64))
+    new_text_type: Mapped[str | None] = mapped_column(String(64))
+    actor: Mapped[str] = mapped_column(String(64), default="engineer", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    text_evidence: Mapped[TextEvidenceRecord] = relationship(back_populates="review_actions")

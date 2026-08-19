@@ -1,4 +1,5 @@
 """Write the deterministic Bootstrap 0 synthetic graph and reconstruction."""
+
 import sys
 from pathlib import Path
 
