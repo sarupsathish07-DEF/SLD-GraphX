@@ -42,6 +42,8 @@ def main() -> None:
         buses = client.get(f"/api/analyses/{analysis_id}/buses").json()
         junctions = client.get(f"/api/analyses/{analysis_id}/junctions").json()
         graph = client.get(f"/api/analyses/{analysis_id}/physical-graph").json()
+        electrical = client.get(f"/api/analyses/{analysis_id}/electrical-graph").json()
+        bundle = client.get(f"/api/analyses/{analysis_id}/export/bundle")
     if analysis["status"] != "complete":
         raise RuntimeError(json.dumps(analysis, indent=2))
     mapping = _symbol_map(symbols, truth["nodes"])
@@ -54,9 +56,12 @@ def main() -> None:
     # Fresh TestClient proves rows survive application lifespan/reload, not merely in-memory state.
     with TestClient(app) as reloaded:
         reloaded_graph = reloaded.get(f"/api/analyses/{analysis_id}/physical-graph").json()
+        reloaded_electrical = reloaded.get(f"/api/analyses/{analysis_id}/electrical-graph").json()
     if len(reloaded_graph["edges"]) != len(graph["edges"]):
         raise RuntimeError("Topology evidence did not persist across reload")
-    print(json.dumps({"analysis_id": analysis_id, "stages": [item["stage"] for item in analysis["stages"]], "symbols": len(symbols), "conductors": len(conductors), "buses": len(buses), "junctions": len(junctions), "physical_edges": len(graph["edges"]), "mapped_edges": len(predicted), "hidden_truth_edges": len(expected), "edge_matches": len(predicted & expected), "reload_edges": len(reloaded_graph["edges"])}, indent=2))
+    ground_truth_sources = sorted(node["id"] for node in truth["nodes"] if node["class_name"] == "energy_source")
+    ground_truth_feeders = sorted(node["id"] for node in truth["nodes"] if node["class_name"] == "feeder_terminal")
+    print(json.dumps({"analysis_id": analysis_id, "stages": [item["stage"] for item in analysis["stages"]], "symbols": len(symbols), "conductors": len(conductors), "buses": len(buses), "junctions": len(junctions), "physical_edges": len(graph["edges"]), "mapped_edges": len(predicted), "hidden_truth_edges": len(expected), "edge_matches": len(predicted & expected), "ground_truth": {"sources": ground_truth_sources, "feeders": ground_truth_feeders, "edges": sorted(expected)}, "predicted_semantics": {"sources": electrical["sources"], "feeders": electrical["feeders"], "resolved_paths": electrical["health"]["resolved_paths"]}, "review_issues": len(electrical["review_issues"]), "export_bundle_bytes": len(bundle.content), "reload_edges": len(reloaded_graph["edges"]), "reload_feeders": len(reloaded_electrical["feeders"])}, indent=2))
 
 
 if __name__ == "__main__":

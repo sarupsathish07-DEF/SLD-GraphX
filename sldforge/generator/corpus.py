@@ -26,6 +26,16 @@ def graph_manifest(graph, topology_type: str, seed: int, width: int, height: int
         "sources": [item.id for item in graph.equipment if item.type.value in {"energy_source", "grid_incomer", "generator"}],
         "feeders": [item.id for item in graph.equipment if item.type.value == "feeder"],
         "exact_source_to_feeder_paths": [item.model_dump(mode="json") for item in graph.feeder_paths],
+        "source_assignments": [
+            {
+                "feeder": item.feeder_equipment_id,
+                "source": item.source_equipment_id,
+                "source_bus": item.source_bus_equipment_id,
+                "destination": item.destination_equipment_id,
+                "switching_equipment": item.switching_equipment_ids,
+            }
+            for item in graph.feeder_paths
+        ],
         "text": [{"raw_rendered_string": item.equipment_id, "semantic_type": "equipment_id", "bbox": item.geometry.bbox, "linked_entity": item.id} for item in graph.equipment],
     }
 

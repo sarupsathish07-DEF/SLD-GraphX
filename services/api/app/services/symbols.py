@@ -268,9 +268,14 @@ def update_symbol(
                 created_at=datetime.utcnow(),
             )
         )
+        analysis_id = record.analysis_run_id
         session.commit()
         session.refresh(record)
-        return serialize_symbol(record)
+        result = serialize_symbol(record)
+    from services.api.app.services.electrical import recompute_electrical
+
+    recompute_electrical(analysis_id)
+    return result
 
 
 def add_manual_symbol(
@@ -319,4 +324,8 @@ def add_manual_symbol(
         )
         session.commit()
         session.refresh(record)
-        return serialize_symbol(record)
+        result = serialize_symbol(record)
+    from services.api.app.services.electrical import recompute_electrical
+
+    recompute_electrical(analysis_run_id)
+    return result

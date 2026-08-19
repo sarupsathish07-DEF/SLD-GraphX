@@ -20,6 +20,7 @@ from services.api.app.db.entities import (
     ArtifactRecord,
     DrawingRecord,
 )
+from services.api.app.services.electrical import persist_electrical
 from services.api.app.services.ocr_worker import OcrWorkerError, recognize
 from services.api.app.services.symbol_worker import SymbolWorkerError, detect
 from services.api.app.services.symbols import associate_text_symbols, persist_symbol_detections
@@ -381,6 +382,31 @@ def run_analysis(drawing_id: str, run_id: str | None = None) -> str:
                 "complete",
                 1,
                 f"Recorded {sum(len(item.issues) for item in topology_results)} structural review issue(s)",
+            )
+            electrical = persist_electrical(session, run_id)
+            _stage(
+                session,
+                run_id,
+                "electrical_reasoning",
+                "complete",
+                1,
+                f"Inferred {len(electrical['sources'])} source candidate(s) and {len(electrical['feeders'])} feeder record(s) from physical evidence",
+            )
+            _stage(
+                session,
+                run_id,
+                "electrical_validation",
+                "complete",
+                1,
+                f"Recorded {len(electrical['validation'])} explainable electrical validation finding(s)",
+            )
+            _stage(
+                session,
+                run_id,
+                "topology_criticality",
+                "complete",
+                1,
+                f"Ranked {len(electrical['review_issues'])} uncertain connection(s) by topology consequence",
             )
             _stage(
                 session,

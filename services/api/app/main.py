@@ -17,6 +17,18 @@ from services.api.app.services.analysis import (
     run_analysis,
 )
 from services.api.app.services.demo import bootstrap_demo
+from services.api.app.services.electrical import (
+    electrical_graph,
+    export_bundle,
+    export_json,
+    feeder_trace,
+    feeders_for_analysis,
+    reconstructed_svg,
+    review_issue,
+    set_switch_state,
+    simulate,
+    sources_for_analysis,
+)
 from services.api.app.services.ingestion import (
     create_project,
     drawings_for_project,
@@ -209,6 +221,99 @@ def buses(analysis_id: str) -> list[dict]:
 @app.get("/api/analyses/{analysis_id}/physical-graph")
 def analysis_physical_graph(analysis_id: str) -> dict:
     return physical_graph(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/sources")
+def analysis_sources(analysis_id: str) -> list[dict]:
+    return sources_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/feeders")
+def analysis_feeders(analysis_id: str) -> list[dict]:
+    return feeders_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/electrical-graph")
+def analysis_electrical_graph(analysis_id: str) -> dict:
+    return electrical_graph(analysis_id)
+
+
+@app.get("/api/feeders/{feeder_id}/trace")
+def trace_feeder(feeder_id: str) -> dict:
+    try:
+        return feeder_trace(feeder_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/analyses/{analysis_id}/validation")
+def analysis_validation(analysis_id: str) -> list[dict]:
+    return electrical_graph(analysis_id)["validation"]
+
+
+@app.get("/api/analyses/{analysis_id}/review-issues")
+def analysis_review_issues(analysis_id: str) -> list[dict]:
+    return electrical_graph(analysis_id)["review_issues"]
+
+
+@app.post("/api/analyses/{analysis_id}/simulate")
+def simulate_analysis(analysis_id: str, overrides: dict[str, str], save: bool = False, name: str | None = None) -> dict:
+    try:
+        return simulate(analysis_id, overrides, save, name)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.patch("/api/analyses/{analysis_id}/switches/{equipment_id}")
+def update_switch(analysis_id: str, equipment_id: str, state: str = Form(...)) -> dict:
+    try:
+        return set_switch_state(analysis_id, equipment_id, state)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/api/reviews/{issue_id}/{action}")
+def action_review(issue_id: str, action: str) -> dict:
+    try:
+        return review_issue(issue_id, action)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/api/analyses/{analysis_id}/export/json")
+def analysis_export_json(analysis_id: str) -> dict:
+    try:
+        return export_json(analysis_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/analyses/{analysis_id}/reconstructed")
+def analysis_reconstructed(analysis_id: str):
+    try:
+        svg = reconstructed_svg(analysis_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    from fastapi.responses import Response
+
+    return Response(svg, media_type="image/svg+xml")
+
+
+@app.get("/api/analyses/{analysis_id}/export/bundle")
+def analysis_export_bundle(analysis_id: str):
+    try:
+        content, filename = export_bundle(analysis_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    from fastapi.responses import Response
+
+    return Response(content, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@app.get("/api/analyses/{analysis_id}/export/csv")
+def analysis_export_csv(analysis_id: str):
+    """CSV tables are delivered as the same safe ZIP bundle as the full export."""
+    return analysis_export_bundle(analysis_id)
 
 
 @app.get("/api/texts/{text_id}")

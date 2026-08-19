@@ -1,5 +1,9 @@
 # Limitations
 
+## Milestone 5 source/feeder boundaries
+
+M5 performs graph connectivity reasoning only. It does not calculate power flow, voltage drop, fault current, protection coordination, electrical energization, or IEC compliance. Source/feeder assignments are only as strong as persisted M4 topology; a broken graph returns unresolved paths rather than guesses. `source-feeder-v1` measures canonical SLDForge graph reasoning, not end-to-end perception. The unseen style-D full-pipeline smoke still recovers 3/5 truth edges and produces source candidates but no feeder record. No legally verified real utility SLD corpus, field validation, SCADA validation, or GIS validation is available.
+
 Milestone 2 is a local ingestion, preprocessing, and OCR/text-review workspace. It does not detect electrical symbols, reconstruct conductors or junctions, create a graph from an uploaded image, parse DXF, export project graph data, or run power-flow/fault/IEC-compliance calculations.
 
 PaddleOCR is evaluated on a small controlled SLDForge benchmark, not utility drawings. Full-page OCR is implemented and text-orientation classification is delegated to the selected local engine; high-resolution tiled OCR is an interface/configuration extension reserved for measured follow-up. Raster uploads deliberately remain text-to-equipment UNASSIGNED until a detector supplies real candidate geometry. Ground-truth association metrics apply only to controlled SLDForge fixtures. OCR model preparation needs a connected one-time download; after the explicit project-local model store is prepared, the worker uses local paths and has no cloud fallback.

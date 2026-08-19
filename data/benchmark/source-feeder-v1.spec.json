@@ -1,0 +1,8 @@
+{
+  "name": "source-feeder-v1",
+  "generator": "graph-first SLDForge canonical fixtures",
+  "topologies": ["radial", "dual_transformer", "sectionalized_bus", "bus_coupler", "alternate_supply", "ring"],
+  "split": "frozen controlled semantic fixtures",
+  "scope": "semantic reasoning against canonical graph truth; end-to-end perception evaluated separately",
+  "real_validation": "not_available"
+}

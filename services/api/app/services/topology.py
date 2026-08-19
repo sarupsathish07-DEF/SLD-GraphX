@@ -137,7 +137,11 @@ def review_connection(connection_id: str, action: str) -> dict:
         session.add(TopologyReviewActionRecord(id=str(uuid.uuid4()), physical_connection_id=record.id, action=action, prior_status=prior, new_status=record.review_status, actor="engineer", created_at=datetime.utcnow()))
         session.commit()
         session.refresh(record)
-        return _serialize_connection(record)
+        result, analysis_id = _serialize_connection(record), record.analysis_run_id
+    from services.api.app.services.electrical import recompute_electrical
+
+    recompute_electrical(analysis_id)
+    return result
 
 
 def add_manual_connection(analysis_run_id: str, drawing_id: str, from_node_id: str, to_node_id: str, page: int = 1) -> dict:
@@ -159,7 +163,11 @@ def add_manual_connection(analysis_run_id: str, drawing_id: str, from_node_id: s
         session.add(TopologyReviewActionRecord(id=str(uuid.uuid4()), physical_connection_id=record.id, action="add", prior_status=None, new_status="verified", payload_json="{}", actor="engineer", created_at=datetime.utcnow()))
         session.commit()
         session.refresh(record)
-        return _serialize_connection(record)
+        result = _serialize_connection(record)
+    from services.api.app.services.electrical import recompute_electrical
+
+    recompute_electrical(analysis_run_id)
+    return result
 
 
 def decide_crossing(junction_id: str, decision: str) -> dict:
@@ -174,4 +182,8 @@ def decide_crossing(junction_id: str, decision: str) -> dict:
         record.review_status = "verified" if decision != "unable_to_determine" else "pending"
         session.add(TopologyReviewActionRecord(id=str(uuid.uuid4()), junction_evidence_id=record.id, action=f"crossing_{decision}", prior_status=prior, new_status=record.review_status, payload_json=json.dumps({"kind": record.kind}), actor="engineer", created_at=datetime.utcnow()))
         session.commit()
-        return {"id": record.id, "kind": record.kind, "review_status": record.review_status}
+        result, analysis_id = {"id": record.id, "kind": record.kind, "review_status": record.review_status}, record.analysis_run_id
+    from services.api.app.services.electrical import recompute_electrical
+
+    recompute_electrical(analysis_id)
+    return result

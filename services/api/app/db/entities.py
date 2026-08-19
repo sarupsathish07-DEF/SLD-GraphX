@@ -60,6 +60,14 @@ class AnalysisRunRecord(Base):
     connection_candidates: Mapped[list["ConnectionCandidateRecord"]] = relationship(back_populates="analysis_run")
     physical_connections: Mapped[list["PhysicalConnectionRecord"]] = relationship(back_populates="analysis_run")
     topology_issues: Mapped[list["TopologyIssueRecord"]] = relationship(back_populates="analysis_run")
+    source_assignments: Mapped[list["SourceAssignmentRecord"]] = relationship(back_populates="analysis_run")
+    feeders: Mapped[list["FeederRecord"]] = relationship(back_populates="analysis_run")
+    feeder_paths: Mapped[list["FeederPathRecord"]] = relationship(back_populates="analysis_run")
+    validation_issues: Mapped[list["ValidationIssueRecord"]] = relationship(back_populates="analysis_run")
+    electrical_review_issues: Mapped[list["ElectricalReviewIssueRecord"]] = relationship(back_populates="analysis_run")
+    switch_states: Mapped[list["SwitchStateRecord"]] = relationship(back_populates="analysis_run")
+    scenarios: Mapped[list["ScenarioRunRecord"]] = relationship(back_populates="analysis_run")
+    export_artifacts: Mapped[list["ExportArtifactRecord"]] = relationship(back_populates="analysis_run")
 
 
 class AnalysisStageRecord(Base):
@@ -327,3 +335,124 @@ class TopologyReviewActionRecord(Base):
     actor: Mapped[str] = mapped_column(String(64), default="engineer", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     connection: Mapped[PhysicalConnectionRecord | None] = relationship(back_populates="review_actions")
+
+
+class SourceAssignmentRecord(Base):
+    __tablename__ = "source_assignments"
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    feeder_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    source_equipment_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    source_role: Mapped[str] = mapped_column(String(80), nullable=False)
+    resolution: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    provenance_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="source_assignments")
+
+
+class FeederRecord(Base):
+    __tablename__ = "feeders"
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    equipment_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    feeder_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_bus_equipment_id: Mapped[str | None] = mapped_column(String(120))
+    destination_equipment_id: Mapped[str | None] = mapped_column(String(120))
+    voltage: Mapped[str | None] = mapped_column(String(100))
+    rating: Mapped[str | None] = mapped_column(String(255))
+    resolution: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    provenance_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    review_status: Mapped[str] = mapped_column(String(32), default="inferred", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="feeders")
+
+
+class FeederPathRecord(Base):
+    __tablename__ = "feeder_paths"
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    feeder_record_id: Mapped[str] = mapped_column(ForeignKey("feeders.id"), index=True)
+    source_equipment_id: Mapped[str | None] = mapped_column(String(120))
+    equipment_path_json: Mapped[str] = mapped_column(Text, nullable=False)
+    connection_path_json: Mapped[str] = mapped_column(Text, nullable=False)
+    switching_equipment_ids_json: Mapped[str] = mapped_column(Text, nullable=False)
+    weakest_connection_id: Mapped[str | None] = mapped_column(String(120))
+    weakest_connection_confidence: Mapped[float | None] = mapped_column(Float)
+    uncertainty_flags_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    active: Mapped[bool] = mapped_column(nullable=False)
+    provenance_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="feeder_paths")
+
+
+class ValidationIssueRecord(Base):
+    __tablename__ = "validation_issues"
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    target_type: Mapped[str | None] = mapped_column(String(64))
+    target_id: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="validation_issues")
+
+
+class ElectricalReviewIssueRecord(Base):
+    __tablename__ = "electrical_review_issues"
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    issue_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    risk_score: Mapped[float] = mapped_column(Float, nullable=False)
+    priority: Mapped[str] = mapped_column(String(16), nullable=False)
+    factors_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    affected_feeders_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    affected_nodes_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    source_assignment_changes_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    component_change: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    review_action: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="electrical_review_issues")
+
+
+class SwitchStateRecord(Base):
+    __tablename__ = "switch_states"
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    equipment_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), default="unknown", nullable=False)
+    provenance: Mapped[str] = mapped_column(String(100), default="unresolved", nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="switch_states")
+
+
+class ScenarioRunRecord(Base):
+    __tablename__ = "scenario_runs"
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    name: Mapped[str | None] = mapped_column(String(200))
+    overrides_json: Mapped[str] = mapped_column(Text, nullable=False)
+    result_json: Mapped[str] = mapped_column(Text, nullable=False)
+    saved: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="scenarios")
+
+
+class ExportArtifactRecord(Base):
+    __tablename__ = "export_artifacts"
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    analysis_run_id: Mapped[str] = mapped_column(ForeignKey("analysis_runs.id"), index=True)
+    export_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    analysis_run: Mapped[AnalysisRunRecord] = relationship(back_populates="export_artifacts")

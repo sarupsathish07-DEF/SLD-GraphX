@@ -1,3 +1,3 @@
-from .reasoning import derive_feeder_paths
+from .reasoning import analyse, criticality, derive_feeder_paths, source_candidates
 
-__all__ = ["derive_feeder_paths"]
+__all__ = ["analyse", "criticality", "derive_feeder_paths", "source_candidates"]

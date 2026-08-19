@@ -48,6 +48,7 @@ class EquipmentType(str, Enum):
 class SwitchState(str, Enum):
     OPEN = "open"
     CLOSED = "closed"
+    UNKNOWN = "unknown"
 
 
 class Geometry(BaseModel):
@@ -98,6 +99,14 @@ class FeederPath(BaseModel):
     feeder_equipment_id: str
     source_equipment_id: str | None
     equipment_path: list[str]
+    connection_path: list[str] = Field(default_factory=list)
+    source_bus_equipment_id: str | None = None
+    destination_equipment_id: str | None = None
+    switching_equipment_ids: list[str] = Field(default_factory=list)
+    weakest_connection_id: str | None = None
+    weakest_connection_confidence: float | None = None
+    uncertainty_flags: list[str] = Field(default_factory=list)
+    provenance: list[Provenance] = Field(default_factory=lambda: [Provenance.GRAPH_INFERENCE])
     confidence: float = Field(ge=0, le=1)
     active: bool
 

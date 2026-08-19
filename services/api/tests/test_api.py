@@ -26,22 +26,13 @@ def test_bootstrap_demo_has_exact_feeder_path() -> None:
         response = client.get("/api/bootstrap/demo")
     assert response.status_code == 200
     graph = response.json()["graph"]
-    assert graph["feeder_paths"] == [
-        {
-            "feeder_equipment_id": "feeder_01",
-            "source_equipment_id": "source_grid",
-            "equipment_path": [
-                "source_grid",
-                "transformer_01",
-                "bus_a",
-                "breaker_01",
-                "ct_01",
-                "feeder_01",
-            ],
-            "confidence": 1.0,
-            "active": True,
-        }
-    ]
+    path = graph["feeder_paths"][0]
+    assert path["feeder_equipment_id"] == "feeder_01"
+    assert path["source_equipment_id"] == "source_grid"
+    assert path["equipment_path"] == ["source_grid", "transformer_01", "bus_a", "breaker_01", "ct_01", "feeder_01"]
+    assert path["connection_path"] == ["edge_01", "edge_02", "edge_03", "edge_04", "edge_05"]
+    assert path["weakest_connection_confidence"] == 1.0
+    assert path["active"] is True
     assert "<svg" in response.json()["svg"]
 
 
@@ -130,8 +121,11 @@ def test_uploaded_png_can_complete_persisted_preprocessing() -> None:
         "junction_detection",
         "terminal_mapping",
         "graph_assembly",
-        "graph_validation",
-        "complete",
+            "graph_validation",
+            "electrical_reasoning",
+            "electrical_validation",
+            "topology_criticality",
+            "complete",
     ]
     assert topology["kind"] == "physical_connectivity"
     assert len(topology["nodes"]) == 1
@@ -252,11 +246,17 @@ def test_real_sldforge_raster_runs_through_upload_and_analysis() -> None:
         crossing = client.post(
             f"/api/junctions/{junction_id}/crossing", data={"decision": "connected"}
         )
+        electrical = client.get(f"/api/analyses/{analysis_id}/electrical-graph")
+        exported = client.get(f"/api/analyses/{analysis_id}/export/json")
+        bundle = client.get(f"/api/analyses/{analysis_id}/export/bundle")
     assert result["status"] == "complete"
     assert result["stages"][-1]["stage"] == "complete"
     assert added.status_code == 201 and rejected.json()["review_status"] == "rejected"
     assert invalid.status_code == 422
     assert crossing.json()["kind"] == "connected_junction"
+    assert electrical.status_code == 200 and electrical.json()["kind"] == "semantic_electrical"
+    assert exported.status_code == 200 and exported.json()["schema_version"] == "sldgraph-x/electrical-1"
+    assert bundle.status_code == 200 and bundle.headers["content-type"] == "application/zip"
 
 
 def test_preprocessing_retains_thin_conductor_and_junction_dot() -> None:
