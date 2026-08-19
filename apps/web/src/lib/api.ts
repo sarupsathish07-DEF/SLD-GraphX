@@ -7,6 +7,11 @@ export type Artifact = { id: string; type: string; mime_type: string; metadata: 
 export type DrawingHistory = { drawing: Drawing; analyses: { id: string; status: string; created_at: string; finished_at: string | null }[] };
 export type TextEvidence = { id: string; raw_text: string; normalized_text: string; text_type: string; confidence_ocr: number; confidence_normalization: number; confidence_semantic: number; bbox_normalized: [number, number, number, number]; polygon_normalized: [number, number][]; page: number; engine: string; model: string; review_status: string; engineer_value: string | null; engineer_text_type: string | null; association: { selected_entity: string | null } };
 export type SymbolEvidence = { id: string; page: number; predicted_class: string; original_predicted_class: string | null; confidence: number | null; bbox_normalized: [number, number, number, number]; polygon_normalized: [number, number][]; orientation_deg: number; tile_origin: [number, number] | null; engine: string; model: string; provenance: string; review_status: string; review_reason: string | null; associations: { text_evidence_id: string; score: number; status: string }[] };
+export type ConductorEvidence = { id: string; page: number; polyline: [number, number][]; confidence: number; provenance: string; masked_interruption: boolean; review_status: string };
+export type BusbarEvidence = { id: string; page: number; polyline: [number, number][]; bbox_normalized: [number, number, number, number]; confidence: number; provenance: string; review_status: string; associated_symbol_id: string | null };
+export type JunctionEvidence = { id: string; page: number; position: [number, number]; kind: "connected_junction" | "crossover_no_connection" | "ambiguous_crossing"; degree: number; confidence: number; provenance: string; review_status: string };
+export type PhysicalConnection = { id: string; analysis_run_id: string; drawing_id: string; candidate_id: string | null; page: number; from_node_id: string; to_node_id: string; polyline: [number, number][]; confidence: number; provenance: string; review_status: string; review_reason: string | null; created_at: string };
+export type PhysicalGraph = { id: string; kind: "physical_connectivity"; nodes: { id: string; symbol_id: string; label: string; symbol_class: string; name: string; position: [number, number]; orientation_deg: number; provenance: string }[]; edges: PhysicalConnection[]; issues: { id: string; kind: string; message: string; related_edge_id: string | null; severity: string; status: string }[] };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${base}${path}`, init);
@@ -25,11 +30,18 @@ export const api = {
   artifacts: (id: string) => request<Artifact[]>(`/api/analyses/${id}/artifacts`),
   texts: (id: string) => request<TextEvidence[]>(`/api/analyses/${id}/texts`),
   symbols: (id: string) => request<SymbolEvidence[]>(`/api/analyses/${id}/symbols`),
+  conductors: (id: string) => request<ConductorEvidence[]>(`/api/analyses/${id}/conductors`),
+  buses: (id: string) => request<BusbarEvidence[]>(`/api/analyses/${id}/buses`),
+  junctions: (id: string) => request<JunctionEvidence[]>(`/api/analyses/${id}/junctions`),
+  physicalGraph: (id: string) => request<PhysicalGraph>(`/api/analyses/${id}/physical-graph`),
   symbolSummary: (id: string) => request<{ detected: number; by_class: Record<string, number>; associated_labels: number; needs_review: number }>(`/api/analyses/${id}/symbol-summary`),
   textSummary: (id: string) => request<{ recognized: number; by_type: Record<string, number>; needs_review: number }>(`/api/analyses/${id}/text-summary`),
   updateText: (id: string, value: string, textType: string) => request<TextEvidence>(`/api/texts/${id}`, { method: "PATCH", body: new URLSearchParams({ value, text_type: textType }) }),
   reviewText: (id: string, action: "accept" | "reject" | "unknown") => request<TextEvidence>(`/api/texts/${id}/${action}`, { method: "POST" }),
   updateSymbol: (id: string, predictedClass?: string, bbox?: number[]) => request<SymbolEvidence>(`/api/symbols/${id}`, { method: "PATCH", body: new URLSearchParams({ ...(predictedClass ? { predicted_class: predictedClass } : {}), ...(bbox ? { bbox_json: JSON.stringify(bbox) } : {}) }) }),
   reviewSymbol: (id: string, action: "accept" | "reject" | "verify") => request<SymbolEvidence>(`/api/symbols/${id}/${action}`, { method: "POST" }),
+  reviewConnection: (id: string, action: "accept" | "reject" | "verify") => request<PhysicalConnection>(`/api/connections/${id}`, { method: "PATCH", body: new URLSearchParams({ action }) }),
+  addManualConnection: (analysisId: string, drawingId: string, fromNodeId: string, toNodeId: string) => request<PhysicalConnection>(`/api/analyses/${analysisId}/connections`, { method: "POST", body: new URLSearchParams({ drawing_id: drawingId, from_node_id: fromNodeId, to_node_id: toNodeId }) }),
+  decideCrossing: (junctionId: string, decision: "connected" | "unconnected" | "unable_to_determine") => request<JunctionEvidence>(`/api/junctions/${junctionId}/crossing`, { method: "POST", body: new URLSearchParams({ decision }) }),
   artifactUrl: (id: string) => `${base}/api/artifacts/${id}`,
 };

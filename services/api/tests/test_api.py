@@ -5,6 +5,8 @@ import fitz
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
+from services.api.app.db.database import SessionLocal
+from services.api.app.db.entities import JunctionEvidenceRecord, TerminalEvidenceRecord
 from services.api.app.main import app
 from services.api.app.services.analysis import queue_analysis, run_analysis
 from sldforge.generator import build_radial_fixture
@@ -107,7 +109,11 @@ def test_uploaded_png_can_complete_persisted_preprocessing() -> None:
             files={"file": ("sld.png", payload.getvalue(), "image/png")},
         ).json()
         accepted = client.post(f"/api/drawings/{drawing['id']}/analyze")
-        result = client.get(f"/api/analyses/{accepted.json()['analysis_run_id']}")
+        analysis_id = accepted.json()["analysis_run_id"]
+        result = client.get(f"/api/analyses/{analysis_id}")
+        topology = client.get(f"/api/analyses/{analysis_id}/physical-graph").json()
+        conductors = client.get(f"/api/analyses/{analysis_id}/conductors").json()
+        junctions = client.get(f"/api/analyses/{analysis_id}/junctions").json()
     assert accepted.status_code == 202
     assert result.json()["status"] == "complete"
     assert [stage["stage"] for stage in result.json()["stages"]] == [
@@ -120,8 +126,16 @@ def test_uploaded_png_can_complete_persisted_preprocessing() -> None:
         "text_semantics",
         "symbol_detection",
         "text_symbol_association",
+        "conductor_extraction",
+        "junction_detection",
+        "terminal_mapping",
+        "graph_assembly",
+        "graph_validation",
         "complete",
     ]
+    assert topology["kind"] == "physical_connectivity"
+    assert len(topology["nodes"]) == 1
+    assert isinstance(conductors, list) and isinstance(junctions, list)
 
 
 def test_artifacts_are_listed_and_safely_served() -> None:
@@ -183,8 +197,66 @@ def test_real_sldforge_raster_runs_through_upload_and_analysis() -> None:
         analysis_id = queue_analysis(drawing["id"])
         run_analysis(drawing["id"], analysis_id)
         result = client.get(f"/api/analyses/{analysis_id}").json()
+        graph = client.get(f"/api/analyses/{analysis_id}/physical-graph").json()
+        assert graph["nodes"]
+        second_terminal = f"terminal:{analysis_id}:review"
+        junction_id = f"junction:{analysis_id}:review"
+        with SessionLocal() as session:
+            session.add(
+                TerminalEvidenceRecord(
+                    id=second_terminal,
+                    analysis_run_id=analysis_id,
+                    drawing_id=drawing["id"],
+                    symbol_evidence_id=graph["nodes"][0]["symbol_id"],
+                    page=1,
+                    symbol_class="feeder_terminal",
+                    name="REVIEW",
+                    position_json="[0.8, 0.5]",
+                    orientation_deg=0,
+                    orientation_confidence=1.0,
+                    provenance="test_fixture",
+                )
+            )
+            session.add(
+                JunctionEvidenceRecord(
+                    id=junction_id,
+                    analysis_run_id=analysis_id,
+                    drawing_id=drawing["id"],
+                    page=1,
+                    position_json="[0.5, 0.5]",
+                    kind="ambiguous_crossing",
+                    degree=4,
+                    confidence=0.42,
+                    provenance="test_fixture",
+                    review_status="pending",
+                )
+            )
+            session.commit()
+        added = client.post(
+            f"/api/analyses/{analysis_id}/connections",
+            data={
+                "drawing_id": drawing["id"],
+                "from_node_id": graph["nodes"][0]["id"],
+                "to_node_id": second_terminal,
+            },
+        )
+        rejected = client.delete(f"/api/connections/{added.json()['id']}")
+        invalid = client.post(
+            f"/api/analyses/{analysis_id}/connections",
+            data={
+                "drawing_id": drawing["id"],
+                "from_node_id": "not-a-terminal",
+                "to_node_id": second_terminal,
+            },
+        )
+        crossing = client.post(
+            f"/api/junctions/{junction_id}/crossing", data={"decision": "connected"}
+        )
     assert result["status"] == "complete"
     assert result["stages"][-1]["stage"] == "complete"
+    assert added.status_code == 201 and rejected.json()["review_status"] == "rejected"
+    assert invalid.status_code == 422
+    assert crossing.json()["kind"] == "connected_junction"
 
 
 def test_preprocessing_retains_thin_conductor_and_junction_dot() -> None:

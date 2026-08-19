@@ -74,6 +74,8 @@ def _proposals(tile: np.ndarray) -> list[tuple[int, int, int, int, bool]]:
         if y > tile.shape[0] - 90 or width < 28 or height < 20 or width > 360 or height > 260:
             continue
         is_busbar = width / max(1, height) >= 4.2 and height <= 54
+        if is_busbar and (x < 55 or y < 55 or x + width > tile.shape[1] - 55):
+            continue
         # Glyph labels are intentionally not symbol proposals. Keep only long thin busbars.
         if height <= 30 and width < 150:
             continue

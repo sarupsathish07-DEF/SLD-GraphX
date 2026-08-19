@@ -1,6 +1,6 @@
 # SLDGraph-X
 
-Local-first electrical SLD intelligence for RMKECIHS93. Milestone 3 adds local, reviewable electrical-symbol evidence to the existing OCR path: PNG/JPEG/PDF pages can be recognized through isolated workers, persisted with confidence/provenance, associated to nearby text with transparent rules, and corrected in the engineering workspace. It does **not** claim conductor reconstruction or graph extraction from uploaded drawings.
+Local-first electrical SLD intelligence for RMKECIHS93. Milestone 4 adds local, reviewable physical-topology reconstruction to the existing OCR and symbol-evidence path: PNG/JPEG/PDF pages yield mask-aware conductor traces, bus candidates, explicit junction/crossover evidence, symbol terminals, scored physical edges, and a synchronized review graph. It does **not** claim source/feeder reasoning, switch-state semantics, DXF parsing, power flow, or IEC compliance.
 
 ## Run locally
 
@@ -21,11 +21,11 @@ The core backend intentionally has no Paddle dependencies. Prepare its separate 
 
 Then OCR runs only with explicit model paths under `models/ocr/paddle/`; it has no cloud fallback. Verify the six-label smoke image with `.\.venv-sldgraphx\Scripts\python.exe scripts\ocr_smoke.py`.
 
-## Milestone 2 workflow
+## Milestone 4 workflow
 
-Create Project → Import PDF/PNG/JPEG → inspect stored document evidence → Analyze Drawing → preprocessing → local OCR → normalization and semantic typing → Text layer/search/inspector → review correction → reopen after restart.
+Create Project → Import PDF/PNG/JPEG → inspect stored document evidence → Analyze Drawing → preprocessing → local OCR → symbol evidence → protected raster topology reconstruction → terminal-aware physical graph → original-SLD/graph review → correction/audit → reopen after restart.
 
-Artifacts are source reference, display render, analysis render, grayscale, contrast, binary, line emphasis, and OCR JSON. Deskew is produced only when the conservative skew estimate crosses its configured threshold.
+Artifacts are source reference, display render, analysis render, grayscale, contrast, binary, line emphasis, OCR JSON, topology JSON, and topology debug masks. Deskew is produced only when the conservative skew estimate crosses its configured threshold.
 
 ## Local symbol detector setup
 
@@ -46,3 +46,9 @@ The detector supports the bounded P0 vocabulary: power transformer, circuit brea
 ```
 
 See the milestone receipts and [limitations](docs/limitations.md) for evidence and boundaries.
+
+## Physical topology reconstruction
+
+M4 uses protected symbol/text masks, directional morphology, line tracing, Zhang-Suen skeletonization, compact-dot junction evidence, terminal templates with resolution-scaled snapping, scored candidate edges, deterministic duplicate repair, and explicit review-only gap bridges. Physical evidence and every review action persist in SQLite. The workspace keeps the original SLD overlay and undirected terminal graph synchronized; it never presents this as power flow or source-to-feeder analysis.
+
+The frozen controlled-synthetic topology benchmark covers radial, dual-transformer, sectionalized-bus, bus-coupler, alternate-supply, and ring scenes. Latest in-style test results are edge precision 0.9623, recall 0.4722, F1 0.6335, and physical reachability accuracy 0.3677. Style-holdout F1 is 0.5200. These are low-recall early-prototype results, not a real-drawing claim. See [topology reconstruction](docs/topology-reconstruction.md), [evaluation protocol](docs/evaluation-protocol.md), and the [Milestone 4 receipt](docs/milestone-4-receipt.md).

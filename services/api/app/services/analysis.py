@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image, ImageEnhance, ImageOps
 from sqlalchemy import select
 
+from engine.sldgraph.topology import reconstruct
 from services.api.app.db.database import SessionLocal
 from services.api.app.db.entities import (
     AnalysisRunRecord,
@@ -23,6 +24,7 @@ from services.api.app.services.ocr_worker import OcrWorkerError, recognize
 from services.api.app.services.symbol_worker import SymbolWorkerError, detect
 from services.api.app.services.symbols import associate_text_symbols, persist_symbol_detections
 from services.api.app.services.texts import persist_ocr_regions
+from services.api.app.services.topology import persist_topology, topology_inputs
 
 RENDER_ROOT = Path("var/renders")
 DESKEW_THRESHOLD_DEGREES = 0.35
@@ -130,7 +132,7 @@ def queue_analysis(drawing_id: str) -> str:
             raise ValueError("Drawing not found")
         session.add(
             AnalysisRunRecord(
-                id=run_id, drawing_id=drawing_id, status="queued", pipeline_version="m3"
+                id=run_id, drawing_id=drawing_id, status="queued", pipeline_version="m4"
             )
         )
         session.commit()
@@ -308,13 +310,85 @@ def run_analysis(drawing_id: str, run_id: str | None = None) -> str:
                 1,
                 f"Proposed {len(associations)} spatial-semantic text-to-symbol association(s)",
             )
+            session.flush()
+            topology_results = []
+            for page_number in range(1, len(masters) + 1):
+                topology_symbols, topology_texts = topology_inputs(session, run_id)
+                topology_symbols = [item for item in topology_symbols if item.page == page_number]
+                topology_texts = [item for item in topology_texts if item.page == page_number]
+                result, diagnostics = reconstruct(
+                    str(output / f"page-{page_number:03}-analysis.png"),
+                    topology_symbols,
+                    topology_texts,
+                    page_number,
+                )
+                topology_results.append(result)
+                persist_topology(session, run_id, drawing.id, result)
+                _store_json(
+                    session,
+                    run_id,
+                    output,
+                    "topology_json",
+                    page_number,
+                    result.model_dump(mode="json"),
+                )
+                for kind, array in diagnostics.items():
+                    _store_image(
+                        session,
+                        run_id,
+                        output,
+                        kind,
+                        page_number,
+                        Image.fromarray(array),
+                        {"pipeline": "m4-topology", "masked_evidence": True},
+                    )
+            _stage(
+                session,
+                run_id,
+                "conductor_extraction",
+                "complete",
+                1,
+                f"Traced {sum(len(item.conductors) for item in topology_results)} conductor candidate(s) from masked line evidence",
+            )
+            _stage(
+                session,
+                run_id,
+                "junction_detection",
+                "complete",
+                1,
+                f"Recorded {sum(len(item.junctions) for item in topology_results)} junction/crossover candidate(s) without forcing ambiguous crossings",
+            )
+            _stage(
+                session,
+                run_id,
+                "terminal_mapping",
+                "complete",
+                1,
+                f"Generated {sum(len(item.terminals) for item in topology_results)} class-template terminal candidate(s)",
+            )
+            _stage(
+                session,
+                run_id,
+                "graph_assembly",
+                "complete",
+                1,
+                f"Assembled {sum(len(item.connections) for item in topology_results)} physical connection candidate(s)",
+            )
+            _stage(
+                session,
+                run_id,
+                "graph_validation",
+                "complete",
+                1,
+                f"Recorded {sum(len(item.issues) for item in topology_results)} structural review issue(s)",
+            )
             _stage(
                 session,
                 run_id,
                 "complete",
                 "complete",
                 1,
-                "Milestone 3 local text and symbol intelligence complete",
+                "Milestone 4 local physical topology extraction complete",
             )
             run.status, run.finished_at = "complete", datetime.utcnow()
             session.commit()
@@ -327,6 +401,8 @@ def run_analysis(drawing_id: str, run_id: str | None = None) -> str:
                     if isinstance(exc, OcrWorkerError)
                     else "symbol_detection"
                     if isinstance(exc, SymbolWorkerError)
+                    else "graph_assembly"
+                    if isinstance(exc, ValueError)
                     else "processing"
                 )
                 run.status, run.error_stage, run.error_message, run.finished_at = (

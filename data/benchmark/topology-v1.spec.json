@@ -1,0 +1,8 @@
+{
+  "name": "topology-v1",
+  "generator": "scripts/create_topology_benchmark.py",
+  "topologies": ["radial", "dual_transformer", "sectionalized_bus", "bus_coupler", "alternate_supply", "ring"],
+  "style_split": {"test": ["style_a", "style_b", "style_c"], "style_holdout": ["style_d"]},
+  "edge_matching": "class and IoU matched detector symbols; unordered equipment endpoint pairs",
+  "real_validation": "not_run"
+}

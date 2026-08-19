@@ -41,6 +41,16 @@ from services.api.app.services.texts import (
     texts_for_analysis,
     update_text,
 )
+from services.api.app.services.topology import (
+    add_manual_connection,
+    buses_for_analysis,
+    conductors_for_analysis,
+    connection_by_id,
+    decide_crossing,
+    junctions_for_analysis,
+    physical_graph,
+    review_connection,
+)
 
 
 @asynccontextmanager
@@ -181,6 +191,26 @@ def analysis_symbol_summary(analysis_id: str) -> dict:
     return symbol_summary(analysis_id)
 
 
+@app.get("/api/analyses/{analysis_id}/conductors")
+def conductors(analysis_id: str) -> list[dict]:
+    return conductors_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/junctions")
+def junctions(analysis_id: str) -> list[dict]:
+    return junctions_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/buses")
+def buses(analysis_id: str) -> list[dict]:
+    return buses_for_analysis(analysis_id)
+
+
+@app.get("/api/analyses/{analysis_id}/physical-graph")
+def analysis_physical_graph(analysis_id: str) -> dict:
+    return physical_graph(analysis_id)
+
+
 @app.get("/api/texts/{text_id}")
 def text(text_id: str) -> dict:
     try:
@@ -195,6 +225,53 @@ def symbol(symbol_id: str) -> dict:
         return symbol_by_id(symbol_id)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/connections/{connection_id}")
+def connection(connection_id: str) -> dict:
+    try:
+        return connection_by_id(connection_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.patch("/api/connections/{connection_id}")
+def patch_connection(connection_id: str, action: str = Form(...)) -> dict:
+    try:
+        return review_connection(connection_id, action)
+    except ValueError as exc:
+        status_code = 404 if str(exc) == "Physical connection not found" else 422
+        raise HTTPException(status_code, str(exc)) from exc
+
+
+@app.delete("/api/connections/{connection_id}")
+def reject_connection(connection_id: str) -> dict:
+    try:
+        return review_connection(connection_id, "reject")
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/analyses/{analysis_id}/connections", status_code=201)
+def manual_connection(
+    analysis_id: str,
+    drawing_id: str = Form(...),
+    from_node_id: str = Form(...),
+    to_node_id: str = Form(...),
+    page: int = Form(1),
+) -> dict:
+    try:
+        return add_manual_connection(analysis_id, drawing_id, from_node_id, to_node_id, page)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/api/junctions/{junction_id}/crossing")
+def crossing_decision(junction_id: str, decision: str = Form(...)) -> dict:
+    try:
+        return decide_crossing(junction_id, decision)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @app.patch("/api/symbols/{symbol_id}")
